@@ -1121,270 +1121,327 @@ end
 Plot the sensitivity analysis results for the myelinated and unmyelinated
 
 %}
+%{
+
+
+Plot the sensitivity analysis results for the myelinated and unmyelinated
+
+%}
 function plot_sensitivity_analysis_results
 
-flag_myelinated = 1;
-plot_for_fiber_type(flag_myelinated)
-
-flag_myelinated=0;
-plot_for_fiber_type(flag_myelinated)
-
-function plot_for_fiber_type(flag_myelinated)
-
-arguments
-    flag_myelinated
-end
-
-output_table = load_sensitivity_analysis_results(flag_myelinated);
-sensitivity_analysis_table = convert_COMSOL_sweep_txt_to_table('../results/sens_analysis_full.txt');
-
-% Create a data structure that contains the same fields as the table, but
-% where each field is parsed for a number, then add in a field containing
-% the desired data of interest
-sensitivity_analysis_struct = [];
-for j = 1:length(sensitivity_analysis_table.Properties.VariableNames)
-    for i = 1:length(sensitivity_analysis_table.(sensitivity_analysis_table.Properties.VariableNames{j}))
-        sensitivity_analysis_struct.(sensitivity_analysis_table.Properties.VariableNames{j})(i) = ...
-            sensitivity_analysis_table.(sensitivity_analysis_table.Properties.VariableNames{j})(i);
-    end
-end
-for i = 1:size(sensitivity_analysis_table,1)
-    sensitivity_analysis_struct.anisotropy_ratio_vals(i) = ...
-        round(sensitivity_analysis_struct.sigma_endoneurium_z(i)./...
-        sensitivity_analysis_struct.sigma_endoneurium_x(i),2);
+    flag_myelinated=0;
+    plot_for_fiber_type(flag_myelinated)
     
-    % Add the desired metric to plot
-    sensitivity_analysis_struct.Vpk2pk(i) = max(output_table.CAP_signal{i}) - ...
-        min(output_table.CAP_signal{i});
+    flag_myelinated = 1;
+    plot_for_fiber_type(flag_myelinated)
     
     
-end
-sensitivity_analysis_struct.CAP_signals_all = cell2mat(output_table.CAP_signal');
-sensitivity_analysis_struct.common_time_vector_ms = output_table.common_time_vector_ms(1,:)';
-
-%% Plot just a subset of the data to highlight key pieces of the story
-if (flag_myelinated)
-    ytick_locations = 2.^[5:12];
-else
-    ytick_locations = 2.^[7:14];
-end
-for i = 1:4
-    switch i
-        case 1
-            % Amplitude vs. fill
-            x_data = sensitivity_analysis_struct.sigma_fill;
-            x_data_label = '\sigma_{surround} (S/m)';
-            x_tick_label_format = '%0.2f';
-            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
-        case 2
-            % Amplitude vs. perineurial conductivity
-            x_data = sensitivity_analysis_struct.sigma_perineurium;
-            x_data_label = '\sigma_{perineurium} (S/m)';
-            x_tick_label_format = '%0.1e';
-            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
-        case 3
-            % Amplitude vs. longitudinal endoneural conductivity
-            x_data = sensitivity_analysis_struct.sigma_endoneurium_z;
-            x_data_label = '\sigma_{z} (S/m)';
-            x_tick_label_format = '%0.2f';
-            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                round(sensitivity_analysis_struct.sigma_fill,2)==1.76 & ...
-                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
-        case 4
-            % Amplitude vs. endoneural anisotropy
-            x_data = sensitivity_analysis_struct.anisotropy_ratio_vals;
-            x_data_label = '\sigma_z / \sigma_r';
-            x_tick_label_format = '%0.2f';
-            subset_indices = round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                round(sensitivity_analysis_struct.sigma_fill,2)==1.76 & ...
-                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
-        otherwise
-            error('Invalid case in switch statement');
+    
+    function plot_for_fiber_type(flag_myelinated)
+    
+    arguments
+        flag_myelinated
     end
     
-    y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
-    color_data = 360-sensitivity_analysis_struct.Theta_CylUm300t_20230323_001;
-    
-    clear g
-    g=gramm('x',x_data,...
-        'y',y_data,...
-        'color',color_data,...
-        'subset',subset_indices);
-    
-    g.geom_line();
-    g.geom_point();
-    
-    xtick_vals =  unique(x_data);
-    xtick_labels = arrayfun(@(x) num2str(x,x_tick_label_format),xtick_vals,'UniformOutput',false);
-    g.set_names('x',x_data_label,'y','V_{pk-pk} (\muV)','color','cuff opening (\deg)');
-    g.axe_property('YScale','log','XScale','log','YMinorTick','off','YGrid','on',...
-        'YMinorGrid','off','YTick',ytick_locations,'YLim',[min(ytick_locations),max(ytick_locations)],...
-        'XMinorTick','off','XLim',...
-        [min(x_data),max(x_data)],'XTick',xtick_vals,'XTickLabel',xtick_labels);
-    g.set_layout_options('legend',false);
-    g.set_text_options('interpreter','tex','base_size',12);
-    figure;
-    g.draw();
-end
-
-%% Plot all the data as a matrix
-if (flag_myelinated)
-    ytick_locations = 4.^[1:7];
-else
-    ytick_locations = 4.^[2:8];
-end
-for i =1:2
-    switch i
-        case 1
-            x_data = sensitivity_analysis_struct.sigma_fill;
-            x_data_label = '\sigma_{surround} (S/m)';
-            x_tick_label_format = '%0.2f';
-            subset_indices = sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001==360;
-            
-        case 2
-            x_data = sensitivity_analysis_struct.sigma_fill;
-            x_data_label = '\sigma_{surround} (S/m)';
-            x_tick_label_format = '%0.2f';
-            subset_indices = sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001==344;
-        otherwise
-            error('Invalid case value')
-    end
-    
-    y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
-    color_data = sensitivity_analysis_struct.sigma_perineurium;
-    
-    clear g
-    g=gramm('x',x_data,...
-        'y',y_data,...
-        'color',color_data,...
-        'subset',subset_indices);
-    
-    g.facet_grid(round(sensitivity_analysis_struct.anisotropy_ratio_vals,2),...
-        round(sensitivity_analysis_struct.sigma_endoneurium_z,2));
-    g.geom_line();
-    g.geom_point();
-    
-    xtick_vals =  unique(x_data);
-    xtick_labels = arrayfun(@(x) num2str(x,x_tick_label_format),xtick_vals,'UniformOutput',false);
-    g.set_names('row','\sigma_z / \sigma_r','column','\sigma_z (S/m)','x',x_data_label,...
-        'y','V_{pk-pk} (\muV)','color','\sigma_{perineurium} (S/m)');
-    g.axe_property('YScale','log','XScale','log','YMinorTick','off','YGrid','on',...
-        'YMinorGrid','off','YTick',ytick_locations,'YLim',[min(ytick_locations),max(ytick_locations)],...
-        'XMinorTick','off','XLim',...
-        [min(x_data),max(x_data)],'XTick',xtick_vals,'XTickLabel',xtick_labels);
-    g.set_layout_options('legend',true);
-    g.set_text_options('interpreter','tex','base_size',10);
-    
-    figure('units','normalized','outerposition',[0 0 1 1]);
-    g.draw();
-end
-
-
-%% Plot waveforms for a subset of the data to highlight key pieces of the waveform effects story
-if (flag_myelinated)
-    x_bounds = [0,2];
-else
-    x_bounds = [2,37];
-end
-for i = 1:4
-    switch i
-        case 1
-            % Waveform vs. fill
-            x_data = sensitivity_analysis_struct.common_time_vector_ms';
-            x_data_label = 'time (ms)';
-            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
-            color_data = sensitivity_analysis_struct.sigma_fill;
-            color_data_label = '\sigma_{surround} (S/m)';
-        case 2
-            % Waveform vs. perineurial conductivity
-            x_data = sensitivity_analysis_struct.common_time_vector_ms';
-            x_data_label = 'time (ms)';
-            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
-            color_data = sensitivity_analysis_struct.sigma_perineurium;
-            color_data_label = '\sigma_{perineurium} (S/m)';
-        case 3
-            % Waveform vs. longitudinal endoneural conductivity
-            x_data = sensitivity_analysis_struct.common_time_vector_ms';
-            x_data_label = 'time (ms)';
-            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6) & ...
-                round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
-            color_data = sensitivity_analysis_struct.sigma_endoneurium_z;
-            color_data_label = '\sigma_z (S/m)';
-        case 4
-            % Waveform vs. anisotropy
-            x_data = sensitivity_analysis_struct.common_time_vector_ms';
-            x_data_label = 'time (ms)';
-            subset_indices = round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6) & ...
-                round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
-            color_data = sensitivity_analysis_struct.anisotropy_ratio_vals;
-            color_data_label = '\sigma_z / \sigma_r';
-        otherwise
-            error('Invalid case in switch statement');
-    end
-    
-    y_data = ((sensitivity_analysis_struct.CAP_signals_all./max(abs(sensitivity_analysis_struct.CAP_signals_all)))');
-    
-    
-    clear g
-    g=gramm('x',x_data,...
-        'y',y_data,...
-        'color',color_data,...
-        'subset',subset_indices);
-    
-    g.facet_grid([],round(360-sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001,2));
-    g.geom_line();
-    
-    g.set_names('column',['cuff opening (',char(176),')'],'x',x_data_label,'y',{'signal','(normalized)'},...
-        'color',color_data_label);
-    g.axe_property('XLim',x_bounds,'Visible','off');
-    g.set_layout_options('legend',true,'legend_position','auto');
-    g.set_text_options('interpreter','tex','base_size',12);
-    %     g.set_color_options('map','parula')
-    g.set_continuous_color('colormap','parula');
-    figure('position',[680   558   612   420]);
-    g.draw();
-end
-
-
-function [output_table, sensitivity_analysis_table] = load_sensitivity_analysis_results(flag_myelinated)
-
-output_table = [];
-sensitivity_analysis_table = [];
-
-if (flag_myelinated==1)
-    output_table_files = {
-        '../results/mimic_ground_truth_myel_sweep_workspace.mat'
-        };
-elseif (flag_myelinated==0)
-    output_table_files = {
-        '../results/mimic_ground_truth_unmyel_sweep_workspace.mat'
-        };
-else
-    error('invalid flag_myelinated value')
-end
-
-
-for i = 1:length(output_table_files)
-    % Load the sensitivity analysis data and the sensitivity analysis table (with comma delimiter)
-    workspace_i = load(output_table_files{i});
-    if (isfield(workspace_i,'output_table'))
-        output_table_i = workspace_i.output_table;
-    elseif (isfield(workspace_i,'all_output_tables'))
-        output_table_i = vertcat(workspace_i.all_output_tables{:});
+    if (flag_myelinated==1)
+        output_table_files = {
+            '../results/myel_sens_analysis_full.mat'
+            '../results/myel_sens_analysis_addendum.mat'
+            '../results/myel_sens_analysis_no_peri.mat'
+            % '../results/mimic_ground_truth_myel_sweep_workspace.mat'
+            % '../results/myel_sens_analysis_full_fat_peri.mat'
+            };
+    elseif (flag_myelinated==0)
+        output_table_files = {
+            '../results/unmyel_sens_analysis_full.mat'
+            '../results/unmyel_sens_analysis_addendum.mat'
+            '../results/unmyel_sens_analysis_no_peri.mat'
+            % '../results/mimic_ground_truth_myel_sweep_workspace.mat'
+            % '../results/myel_sens_analysis_full_fat_peri.mat'
+            };
     else
-        error('Did not find output_table or all_output_tables in %s',output_table_files{i});
+        error('invalid flag_myelinated value')
     end
     
-    % Append the output table and the sensitivity analysis table
-    output_table = [output_table;output_table_i];
-end
+    sensitivity_analysis_table = [
+        convert_COMSOL_sweep_txt_to_table('../results/sens_analysis_full.txt')
+        convert_COMSOL_sweep_txt_to_table('../results/sens_analysis_addendum.txt')
+        convert_COMSOL_sweep_txt_to_table('../results/sens_analysis_no_peri.txt')
+        ];
+    
+    
+    [sensitivity_analysis_table,I] = sortrows(sensitivity_analysis_table);
+    
+    output_table = load_sensitivity_analysis_results(output_table_files);
+    
+    output_table = output_table(I,:);
+    
+    % Limit the perineurial conductivity to 5.4e-5 S/m up to 0.014 S/m since those
+    % are 16x the default value and going beyond that is not biologically feasible;
+    % also include NaN, which is the no peri case
+    % Eliminate any rows with a perineurial conductivity outside that range
+    output_table = output_table((sensitivity_analysis_table.sigma_perineurium<=0.014 & ...
+        sensitivity_analysis_table.sigma_perineurium>=5.4e-5) | isinf(sensitivity_analysis_table.sigma_perineurium),:);
+    sensitivity_analysis_table = sensitivity_analysis_table((sensitivity_analysis_table.sigma_perineurium<=0.014 & ...
+        sensitivity_analysis_table.sigma_perineurium>=5.4e-5) | isinf(sensitivity_analysis_table.sigma_perineurium),:);
+    warning('limiting perineurial conductivity to 5.4e-5 S/m up to 0.014 S/m')
+    
+    % Create a data structure that contains the same fields as the table, but
+    % where each field is parsed for a number, then add in a field containing
+    % the desired data of interest
+    sensitivity_analysis_struct = [];
+    for j = 1:length(sensitivity_analysis_table.Properties.VariableNames)
+        for i = 1:length(sensitivity_analysis_table.(sensitivity_analysis_table.Properties.VariableNames{j}))
+            sensitivity_analysis_struct.(sensitivity_analysis_table.Properties.VariableNames{j})(i) = ...
+                sensitivity_analysis_table.(sensitivity_analysis_table.Properties.VariableNames{j})(i);
+        end
+    end
+    % warning('doing rms instead of pk2pk')
+    for i = 1:size(sensitivity_analysis_table,1)
+        sensitivity_analysis_struct.anisotropy_ratio_vals(i) = ...
+            round(sensitivity_analysis_struct.sigma_endoneurium_z(i)./...
+            sensitivity_analysis_struct.sigma_endoneurium_x(i),2);
+        
+        % Add the desired metric to plot
+        sensitivity_analysis_struct.Vpk2pk(i) = max(output_table.CAP_signal{i}) - ...
+            min(output_table.CAP_signal{i});
+        
+    end
+    sensitivity_analysis_struct.CAP_signals_all = cell2mat(output_table.CAP_signal');
+    sensitivity_analysis_struct.common_time_vector_ms = output_table.common_time_vector_ms(1,:)';
+    
+    %% Plot just a subset of the data to highlight key pieces of the story
+    % warning('only plotting the no peri sims')
+    % for i = [1 3 4]
+    for i = 1:4
+        switch i
+            case 1
+                % Amplitude vs. fill
+                x_data = sensitivity_analysis_struct.sigma_fill;
+                x_data_label = '\sigma_{surround} (S/m)';
+                x_tick_label_format = '%0.2f';
+                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                    round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
+            case 2
+                
+                % Amplitude vs. perineurial conductivity
+                x_data = sensitivity_analysis_struct.sigma_perineurium;
+                x_data_label = '\sigma_{perineurium} (S/m)';
+                x_tick_label_format = '%0.1e';
+                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                    round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                    round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6) & ...
+                    ~isinf(sensitivity_analysis_struct.sigma_perineurium); % skip the Inf case, since this has no perineurium
+            case 3
+                % Amplitude vs. longitudinal endoneural conductivity
+                x_data = sensitivity_analysis_struct.sigma_endoneurium_z;
+                x_data_label = '\sigma_{z} (S/m)';
+                x_tick_label_format = '%0.2f';
+                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                    round(sensitivity_analysis_struct.sigma_fill,2)==1.76 & ...
+                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
+            case 4
+                % Amplitude vs. endoneural anisotropy
+                x_data = sensitivity_analysis_struct.anisotropy_ratio_vals;
+                x_data_label = '\sigma_z / \sigma_r';
+                x_tick_label_format = '%0.2f';
+                subset_indices = round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                    round(sensitivity_analysis_struct.sigma_fill,2)==1.76 & ...
+                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
+            otherwise
+                error('Invalid case in switch statement');
+        end
+        
+        y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
+        color_data = 360-sensitivity_analysis_struct.Theta_CylUm300t_20230323_001;
+        
+        clear g
+        g=gramm('x',x_data,...
+            'y',y_data,...
+            'color',color_data,...
+            'subset',subset_indices);
+        
+        g.geom_line();
+        g.geom_point();
+        
+        xtick_vals =  unique(x_data);
+        xtick_labels = arrayfun(@(x) num2str(x,x_tick_label_format),xtick_vals,'UniformOutput',false);
+        g.set_names('x',x_data_label,'y','V_{pk-pk} (\muV)','color','cuff opening (\deg)');
+        g.axe_property('YScale','log','XScale','log','YMinorTick','off','YGrid','on',...
+            'YMinorGrid','off',...
+            'XMinorTick','off','XLim',...
+            [min(x_data),max(x_data)],'XTick',xtick_vals,'XTickLabel',xtick_labels);
+        
+        if (flag_myelinated)
+            ytick_locations = 2.^[5:12];
+        else
+            ytick_locations = 2.^[7:14];
+        end
+        g.axe_property('YTick',ytick_locations,'YLim',[min(ytick_locations),max(ytick_locations)]);
+        
+        g.set_layout_options('legend',false);
+        g.set_text_options('interpreter','tex','base_size',12);
+        figure;
+        g.draw();
+    end
+    
+    %% Plot all the data as a matrix
+    % warning('disabled y lim to test out rms')
+    for i =1:2
+        switch i
+            case 1
+                x_data = sensitivity_analysis_struct.sigma_fill;
+                x_data_label = '\sigma_{surround} (S/m)';
+                x_tick_label_format = '%0.2f';
+                subset_indices = sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001==360;
+                
+            case 2
+                x_data = sensitivity_analysis_struct.sigma_fill;
+                x_data_label = '\sigma_{surround} (S/m)';
+                x_tick_label_format = '%0.2f';
+                subset_indices = sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001==344;
+            otherwise
+                error('Invalid case value')
+        end
+        
+        y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
+        color_data = sensitivity_analysis_struct.sigma_perineurium;
+        
+        clear g
+        g=gramm('x',x_data,...
+            'y',y_data,...
+            'color',color_data,...
+            'subset',subset_indices & sensitivity_analysis_struct.sigma_perineurium~=Inf);
+        
+        g.facet_grid(round(sensitivity_analysis_struct.anisotropy_ratio_vals,2),...
+            round(sensitivity_analysis_struct.sigma_endoneurium_z,2));
+        g.geom_line();
+        g.geom_point();
+        
+        xtick_vals =  unique(x_data);
+        xtick_labels = arrayfun(@(x) num2str(x,x_tick_label_format),xtick_vals,'UniformOutput',false);
+        g.set_names('row','\sigma_z / \sigma_r','column','\sigma_z (S/m)','x',x_data_label,...
+            'y','V_{pk-pk} (\muV)','color','\sigma_{perineurium} (S/m)');
+        g.axe_property('YScale','log','XScale','log','YMinorTick','off','YGrid','on',...
+            'YMinorGrid','off',...
+            'XMinorTick','off','XLim',...
+            [min(x_data),max(x_data)],'XTick',xtick_vals,'XTickLabel',xtick_labels);
+        
+        if (flag_myelinated)
+            ytick_locations = 4.^[1:7];
+        else
+            ytick_locations = 4.^[2:8];
+        end
+        g.axe_property('YTick',ytick_locations,'YLim',[min(ytick_locations),max(ytick_locations)]);
+        
+        g.set_layout_options('legend',true);
+        g.set_text_options('interpreter','tex','base_size',10);
+        
+        figure('units','normalized','outerposition',[0 0 1 1]);
+        g.draw();
+        
+        g.update('x',x_data,...
+            'y',y_data,...
+            'color',color_data,...
+            'subset',subset_indices & sensitivity_analysis_struct.sigma_perineurium==Inf);
+        g.geom_line();
+        g.set_color_options('map',[0 0 0]);
+        g.set_line_options("styles",{'--'});
+        g.draw();
+    end
+    
+    
+    %% Plot waveforms for a subset of the data to highlight key pieces of the waveform effects story
+    if (flag_myelinated)
+        x_bounds = [0,2];
+    else
+        x_bounds = [2,37];
+    end
+    for i = 1:4
+        switch i
+            case 1
+                % Waveform vs. fill
+                x_data = sensitivity_analysis_struct.common_time_vector_ms';
+                x_data_label = 'time (ms)';
+                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                    round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
+                color_data = sensitivity_analysis_struct.sigma_fill;
+                color_data_label = '\sigma_{surround} (S/m)';
+            case 2
+                % Waveform vs. perineurial conductivity
+                x_data = sensitivity_analysis_struct.common_time_vector_ms';
+                x_data_label = 'time (ms)';
+                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                    round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                    round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6) & ...
+                    ~isinf(sensitivity_analysis_struct.sigma_perineurium);
+                color_data = sensitivity_analysis_struct.sigma_perineurium;
+                color_data_label = '\sigma_{perineurium} (S/m)';
+            case 3
+                % Waveform vs. longitudinal endoneural conductivity
+                x_data = sensitivity_analysis_struct.common_time_vector_ms';
+                x_data_label = 'time (ms)';
+                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6) & ...
+                    round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
+                color_data = sensitivity_analysis_struct.sigma_endoneurium_z;
+                color_data_label = '\sigma_z (S/m)';
+            case 4
+                % Waveform vs. anisotropy
+                x_data = sensitivity_analysis_struct.common_time_vector_ms';
+                x_data_label = 'time (ms)';
+                subset_indices = round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6) & ...
+                    round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
+                color_data = sensitivity_analysis_struct.anisotropy_ratio_vals;
+                color_data_label = '\sigma_z / \sigma_r';
+            otherwise
+                error('Invalid case in switch statement');
+        end
+        
+        y_data = ((sensitivity_analysis_struct.CAP_signals_all./max(abs(sensitivity_analysis_struct.CAP_signals_all)))');
+        
+        
+        clear g
+        g=gramm('x',x_data,...
+            'y',y_data,...
+            'color',color_data,...
+            'subset',subset_indices);
+        
+        g.facet_grid([],round(360-sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001,2));
+        g.geom_line();
+        
+        g.set_names('column',['cuff opening (',char(176),')'],'x',x_data_label,'y',{'signal','(normalized)'},...
+            'color',color_data_label);
+        g.axe_property('XLim',x_bounds,'Visible','off');
+        g.set_layout_options('legend',true,'legend_position','auto');
+        g.set_text_options('interpreter','tex','base_size',12);
+        %     g.set_color_options('map','parula')
+        g.set_continuous_color('colormap','parula');
+        figure('position',[680   558   612   420]);
+        g.draw();
+    end
+    
+    
+    
+    function [output_table, sensitivity_analysis_table] = load_sensitivity_analysis_results(output_table_files)
+    
+    output_table = [];
+    sensitivity_analysis_table = [];
+    
+    for i = 1:length(output_table_files)
+        % Load the sensitivity analysis data and the sensitivity analysis table (with comma delimiter)
+        
+        % workspace_i = load(output_table_files{i},'output_table');
+        % output_table_i = workspace_i.output_table;
+        workspace_i = load(output_table_files{i},'all_output_tables');
+        output_table_i = vertcat(workspace_i.all_output_tables{:});
+        % sensitivity_analysis_table_i = readtable(sensitivity_analysis_table_files{i},'Delimiter',',','ReadVariableNames',true);
+        
+        % Append the output table and the sensitivity analysis table
+        output_table = [output_table;output_table_i];
+        % sensitivity_analysis_table = [sensitivity_analysis_table;sensitivity_analysis_table_i];
+    end
+    
