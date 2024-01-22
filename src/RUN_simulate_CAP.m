@@ -1162,12 +1162,13 @@ end
 
 for i = 1:length(output_table_files)
     % Load the sensitivity analysis data and the sensitivity analysis table (with comma delimiter)
-    if (flag_myelinated==1)
-        workspace_i = load(output_table_files{i},'output_table');
+    workspace_i = load(output_table_files{i});
+    if (isfield(workspace_i,'output_table'))
         output_table_i = workspace_i.output_table;
-    else
-        workspace_i = load(output_table_files{i},'all_output_tables');
+    elseif (isfield(workspace_i,'all_output_tables'))
         output_table_i = vertcat(workspace_i.all_output_tables{:});
+    else
+        error('Did not find output_table or all_output_tables in %s',output_table_files{i});
     end
     
     % Append the output table and the sensitivity analysis table
