@@ -1144,48 +1144,13 @@ function plot_sensitivity_analysis_results
     end
     
     if (flag_myelinated==1)
-        output_table_files = {
-            '../results/myel_sens_analysis_full.mat'
-            '../results/myel_sens_analysis_addendum.mat'
-            '../results/myel_sens_analysis_no_peri.mat'
-            % '../results/mimic_ground_truth_myel_sweep_workspace.mat'
-            % '../results/myel_sens_analysis_full_fat_peri.mat'
-            };
+        load('../results/myelinated_fiber_CNAPs_across_materials.mat','sensitivity_analysis_table','output_table');
     elseif (flag_myelinated==0)
-        output_table_files = {
-            '../results/unmyel_sens_analysis_full.mat'
-            '../results/unmyel_sens_analysis_addendum.mat'
-            '../results/unmyel_sens_analysis_no_peri.mat'
-            % '../results/mimic_ground_truth_myel_sweep_workspace.mat'
-            % '../results/myel_sens_analysis_full_fat_peri.mat'
-            };
+        load('../results/unmyelinated_fiber_CNAPs_across_materials.mat','sensitivity_analysis_table','output_table')
     else
-        error('invalid flag_myelinated value')
+        error('Invalid value of flag_myelinated')
     end
-    
-    sensitivity_analysis_table = [
-        convert_COMSOL_sweep_txt_to_table('../results/sens_analysis_full.txt')
-        convert_COMSOL_sweep_txt_to_table('../results/sens_analysis_addendum.txt')
-        convert_COMSOL_sweep_txt_to_table('../results/sens_analysis_no_peri.txt')
-        ];
-    
-    
-    [sensitivity_analysis_table,I] = sortrows(sensitivity_analysis_table);
-    
-    output_table = load_sensitivity_analysis_results(output_table_files);
-    
-    output_table = output_table(I,:);
-    
-    % Limit the perineurial conductivity to 5.4e-5 S/m up to 0.014 S/m since those
-    % are 16x the default value and going beyond that is not biologically feasible;
-    % also include NaN, which is the no peri case
-    % Eliminate any rows with a perineurial conductivity outside that range
-    output_table = output_table((sensitivity_analysis_table.sigma_perineurium<=0.014 & ...
-        sensitivity_analysis_table.sigma_perineurium>=5.4e-5) | isinf(sensitivity_analysis_table.sigma_perineurium),:);
-    sensitivity_analysis_table = sensitivity_analysis_table((sensitivity_analysis_table.sigma_perineurium<=0.014 & ...
-        sensitivity_analysis_table.sigma_perineurium>=5.4e-5) | isinf(sensitivity_analysis_table.sigma_perineurium),:);
-    warning('limiting perineurial conductivity to 5.4e-5 S/m up to 0.014 S/m')
-    
+
     % Create a data structure that contains the same fields as the table, but
     % where each field is parsed for a number, then add in a field containing
     % the desired data of interest
@@ -1424,24 +1389,4 @@ function plot_sensitivity_analysis_results
         g.draw();
     end
     
-    
-    
-    function [output_table, sensitivity_analysis_table] = load_sensitivity_analysis_results(output_table_files)
-    
-    output_table = [];
-    sensitivity_analysis_table = [];
-    
-    for i = 1:length(output_table_files)
-        % Load the sensitivity analysis data and the sensitivity analysis table (with comma delimiter)
-        
-        % workspace_i = load(output_table_files{i},'output_table');
-        % output_table_i = workspace_i.output_table;
-        workspace_i = load(output_table_files{i},'all_output_tables');
-        output_table_i = vertcat(workspace_i.all_output_tables{:});
-        % sensitivity_analysis_table_i = readtable(sensitivity_analysis_table_files{i},'Delimiter',',','ReadVariableNames',true);
-        
-        % Append the output table and the sensitivity analysis table
-        output_table = [output_table;output_table_i];
-        % sensitivity_analysis_table = [sensitivity_analysis_table;sensitivity_analysis_table_i];
-    end
     
