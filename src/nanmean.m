@@ -1,5 +1,5 @@
 %{
-Whe plottin histograms / bar plots, gramm uses nanmean from the statistics
+When plotting histograms / bar plots, gramm uses nanmean from the statistics
 toolbox. Thus, I redefined nanmean here in case the user does not have the
 statistics toolbox.
 %}
