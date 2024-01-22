@@ -39,7 +39,9 @@ function_run_status_and_handle = {
     1, @run_evalulate_CV_vs_fiberD_effect_on_CAP % Generate data for Figure 9
     1, @plot_evalulate_CV_vs_fiberD_effect_on_CAP % Plot Figure 9
     1, @quantify_shrinkage_effects % Generate data for Figure 10 & plot it
+    1, @plot_shrinkage_effects % Plot Figure 10
     };
+
 % Print the date and time this script was run
 fprintf('Running script %s at %s\n',mfilename,datetime('now'));
 fprintf('MATLAB version: %s\n',version);
@@ -154,6 +156,7 @@ load('../results/in_vivo_data_table.mat','in_vivo_data_table');
 % Load the model data to plot on top of the in vivo data
 load('../results/baseline_CNAP_model_data_table.mat','model_data_table');
 % Plot the results
+figure('position',[99,497,803,420]);
 clearvars g
 g = gramm('x',[in_vivo_data_table.time_vector_ms;model_data_table.time_vector_ms],...
     'y',[in_vivo_data_table.CNAP_uV;model_data_table.CNAP_uV],...
@@ -165,7 +168,9 @@ g.geom_line();
 g.set_names('x','time (ms)','y','signal (\muV)','column','fiber type');
 g.set_text_options('interpreter','tex','base_size',16);
 g.set_line_options("styles",{'-',':'});
-figure('position',[99,497,803,420]);
+% Black lines
+g.set_color_options('map',[0,0,0]);
+
 g.draw();
 
 % Set the x-axis limits for myelinated fibers
@@ -174,6 +179,8 @@ legend(g.facet_axes_handles(1),{'in vivo','model'})
 % Set the x-axis limits for unmyelinated fibers
 set(g.facet_axes_handles(2),'XLim',[4,35]);
 legend(g.facet_axes_handles(2),{'in vivo','model'})
+% Save to svg file
+g.export('file_name','../results/matlab_in_vivo_vs_model_baseline.svg','file_type','svg');
 
 % Now compare the tuned model data to in vivo; plot all the in vivo data first
 clearvars model_data_table
@@ -212,6 +219,97 @@ set(g(1).facet_axes_handles(2),'XLim',[2.5,35],'YLim',3000*[-1 1]);
 set(g(2).facet_axes_handles(1),'XLim',[0.16,2],'YLim',200*[-1 1]);
 set(g(2).facet_axes_handles(2),'XLim',[2.5,35],'YLim',800*[-1 1]);
 
+% Define each of the xlim bounds above as separate variables
+myel_bounds = [0.16,2];
+unmyel_bounds = [2.5,35];
+% Make a new empty column vector with the same length as the concatenated in
+% vivo and model data; The iterate through it in a for loop to get the
+% peak-to-peak amplitdue within the appropriate bounds for each fiber type
+Vpk2pk = nan(size([in_vivo_data_table.CNAP_uV;model_data_table.CNAP_uV],1),1);
+is_model_data = cell(size([in_vivo_data_table.CNAP_uV;model_data_table.CNAP_uV],1),1);
+% Iterate through the in vivo data
+for i = 1:size(in_vivo_data_table,1)
+    % Get the signal
+    signal = in_vivo_data_table.CNAP_uV{i};
+    % Get the time vector
+    time_vector_ms = in_vivo_data_table.time_vector_ms{i};
+    % Get the fiber type
+    fiber_type = in_vivo_data_table.fiber_type{i};
+    % Get the bounds
+    if (strcmp(fiber_type,'myelinated'))
+        bounds = myel_bounds;
+    elseif (strcmp(fiber_type,'unmyelinated'))
+        bounds = unmyel_bounds;
+    else
+        error('invalid fiber type: %s',fiber_type)
+    end
+    % Get the peak-to-peak amplitude
+    Vpk2pk(i) = max(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2))) - ...
+        min(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2)));
+    
+    is_model_data{i} = 'in vivo';
+end
+
+% Iterate through the model data
+for i = 1:size(model_data_table,1)
+    % Get the signal
+    signal = model_data_table.CNAP_uV{i};
+    % Get the time vector
+    time_vector_ms = model_data_table.time_vector_ms{i};
+    % Get the fiber type
+    fiber_type = model_data_table.fiber_type{i};
+    % Get the bounds
+    if (strcmp(fiber_type,'myelinated'))
+        bounds = myel_bounds;
+    elseif (strcmp(fiber_type,'unmyelinated'))
+        bounds = unmyel_bounds;
+    else
+        error('invalid fiber type: %s',fiber_type)
+    end
+    % Get the peak-to-peak amplitude
+    Vpk2pk(i+size(in_vivo_data_table,1)) = max(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2))) - ...
+        min(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2)));
+    
+    is_model_data{i+size(in_vivo_data_table,1)} = 'model';
+end
+
+% Plot the peak-to-peak amplitude vs. conduction distance
+clearvars g
+g = gramm('x',[in_vivo_data_table.conduction_distance_mm;model_data_table.conduction_distance_mm],...
+    'y',Vpk2pk,...
+    'color',[in_vivo_data_table.fiber_type;model_data_table.fiber_type],...
+    'subset',[in_vivo_data_table.channel_number;model_data_table.channel_number]==1);
+g.facet_grid([in_vivo_data_table.fiber_type;model_data_table.fiber_type],is_model_data,"scale","independent",'row_labels',false);
+g.geom_point();
+g.set_names('x','conduction distance (mm)','y','V_{pk-pk} (\muV)','row','source','color','fiber type','column','source');
+g.set_text_options('interpreter','tex','base_size',16);
+g.set_color_options('map','matlab');
+figure('position',[464,240,1101,738]);
+g.draw();
+
+% Ensure y-axis starts at zero
+set(g.facet_axes_handles(1),'YLim',[0 1.1*max(abs(get(g.facet_axes_handles(1),'YLim')))]);
+set(g.facet_axes_handles(2),'YLim',[0 1.1*max(abs(get(g.facet_axes_handles(2),'YLim')))]);
+set(g.facet_axes_handles(3),'YLim',[0 1.1*max(abs(get(g.facet_axes_handles(3),'YLim')))]);
+set(g.facet_axes_handles(4),'YLim',[0 1.1*max(abs(get(g.facet_axes_handles(4),'YLim')))]);
+% Turn off minor ticks
+set(g.facet_axes_handles(1),'YMinorTick','off');
+set(g.facet_axes_handles(2),'YMinorTick','off');
+set(g.facet_axes_handles(3),'YMinorTick','off');
+set(g.facet_axes_handles(4),'YMinorTick','off');
+% Set all xlim to be 5 to 16 mm 
+set(g.facet_axes_handles(1),'XLim',[5 16]);
+set(g.facet_axes_handles(2),'XLim',[5 16]);
+set(g.facet_axes_handles(3),'XLim',[5 16]);
+set(g.facet_axes_handles(4),'XLim',[5 16]);
+
+
+
+
+
+
+
+
 
 
 
@@ -246,11 +344,17 @@ g.draw();
 
 % Set the x-axis limits for myelinated fibers
 set(g.facet_axes_handles(1),'XLim',[0.16,2.5]);
+% Set y-axis to be symmetric but keep the same scale
+set(g.facet_axes_handles(1),'YLim',[-1 1]*max(abs(get(g.facet_axes_handles(1),'YLim'))));
 legend(g.facet_axes_handles(1),{'brute force','filtered interpolated templates'})
 % Set the x-axis limits for unmyelinated fibers
 set(g.facet_axes_handles(2),'XLim',[4,35]);
+% Set y-axis to be symmetric but keep the same scale
+set(g.facet_axes_handles(2),'YLim',[-1 1]*max(abs(get(g.facet_axes_handles(2),'YLim'))));
 legend(g.facet_axes_handles(2),{'brute force','filtered interpolated templates'})
 
+% Save to svg file
+g.export('file_name','../results/matlab_brute_force_vs_efficient.svg','file_type','svg');
 
 function run_conduction_distance_sensitivity_analysis()
 
@@ -689,17 +793,127 @@ for i = 1:2
     params = loadjson(base_parameters_filename);
     
     % Run the CNAP across multiple shrinkage correction factors
-    shrinkage_correction_factors = [1:0.05:1.2];
+    % fiber_diameter_scaling_factors = [0.8:0.05:1.2];
+    fiber_diameter_scaling_factors = logspace(log10(1/1.2),log10(1.2),13);
     original_fiber_diameters_um = params.fiber_diameters_in_nerve_um;
+    % Calculate the set of fiber diameters that, when scaled by the largest or
+    % smallest shrinkage correction factor, are still within the range of values
+    % of the original fiber diameters
+    valid_fibers = find((min(original_fiber_diameters_um) < (original_fiber_diameters_um*min(fiber_diameter_scaling_factors))) & ...
+        (max(original_fiber_diameters_um) > (original_fiber_diameters_um*max(fiber_diameter_scaling_factors))));
+    % Print the nmber of original and valid fibers
+    fprintf('number of original fibers: %d\n',length(original_fiber_diameters_um));
+    fprintf('number of valid fibers after considering all scaling to be done: %d\n',length(valid_fibers));
+    
+    
     output_table = [];
-    for idx=1:length(shrinkage_correction_factors)
-        params.fiber_diameters_in_nerve_um = shrinkage_correction_factors(idx)*original_fiber_diameters_um;
+    for idx=1:length(fiber_diameter_scaling_factors)
+        params.fiber_diameters_in_nerve_um = fiber_diameter_scaling_factors(idx)*original_fiber_diameters_um(valid_fibers);
         output_table = vertcat(output_table,process_params(params));
     end
     
+    if (i==1)
+        % Save the workspace
+        save('../results/whats_myelinated_fiber_diameter_got_to_do_got_to_do_with_it.mat','output_table','fiber_diameter_scaling_factors');
+    elseif (i==2)
+        % Save the workspace
+        save('../results/whats_unmyelinated_fiber_diameter_got_to_do_got_to_do_with_it.mat','output_table','fiber_diameter_scaling_factors');
+    end
+    
+    
+end
+
+function plot_shrinkage_effects()
+for i = 1:2
+    if (i==1)
+        x_bounds = [0 2];
+        summary_fig_filename = '../results/shrinkage_correction_effect_myelinated_summary';
+        load('../results/whats_myelinated_fiber_diameter_got_to_do_got_to_do_with_it.mat','output_table','fiber_diameter_scaling_factors');
+    elseif (i==2)
+        x_bounds = [0 41];
+        summary_fig_filename = '../results/shrinkage_correction_effect_unmyelinated_summary';
+        load('../results/whats_unmyelinated_fiber_diameter_got_to_do_got_to_do_with_it.mat','output_table','fiber_diameter_scaling_factors');
+    else
+        error('invalid value of i: %d')
+    end
+    
+    
     % Plot all CNAPs vs. time (overlaid)
-    figure('color',[1 1 1]);
-    for idx=1:length(shrinkage_correction_factors)
+    figure('position',[469,74,1098,391]);
+    clearvars g
+    g(1,1) = gramm('x',output_table.common_time_vector_ms,...
+        'y',cellfun(@(signal) signal/1e3, output_table.CAP_signal_uV, 'UniformOutput',false),...
+        'color',round(fiber_diameter_scaling_factors,2),...
+        'subset',ismember(1:height(output_table),1:3:13)); % only plot every other signal for visual clarity
+    g(1,1).geom_line();
+    g(1,1).set_names('x','time (ms)','y','CNAP (mV)','color','diameter scaling');
+    g(1,1).set_text_options('interpreter','tex','base_size',14,'legend_title_scaling',0.9,'legend_scaling',0.8);
+    g(1,1).axe_property('XLim',x_bounds);
+    g(1,1).set_continuous_color('colormap','parula');
+    g(1,1).set_layout_options('legend_position',[0.22 0.65 0.1 0.35]);
+    
+    g(1,2) = gramm('x',fiber_diameter_scaling_factors,...
+        'y',cellfun(@(signal) max(signal/1e3)-min(signal/1e3), output_table.CAP_signal_uV));
+    g(1,2).geom_point();
+    g(1,2).set_color_options('map',[0,0,0],'n_color',1,'n_lightness',1,'lightness',0.5);
+    g(1,2).stat_glm('geom','line');
+    g(1,2).set_names('x','fiber diameter scaling','y','V_{pk-pk} (mV)');
+    g(1,2).set_text_options('interpreter','tex','base_size',14);
+    g(1,2).axe_property('XLim',[0.91*min(fiber_diameter_scaling_factors),1.1*max(fiber_diameter_scaling_factors)]);
+    
+    g(1,3) = gramm('x',fiber_diameter_scaling_factors,...
+        'y',cellfun(@(signal,time) time(signal==min(signal)), output_table.CAP_signal_uV, output_table.common_time_vector_ms));
+    g(1,3).geom_point();
+    g(1,3).set_color_options('map',[0,0,0],'n_color',1,'n_lightness',1,'lightness',0.5);
+    g(1,3).stat_glm('geom','line');
+    g(1,3).set_names('x','fiber diameter scaling','y','negative peak latency (ms)');
+    g(1,3).set_text_options('interpreter','tex','base_size',14);
+    g(1,3).axe_property('XLim',[0.91*min(fiber_diameter_scaling_factors),1.1*max(fiber_diameter_scaling_factors)]);
+    
+    g.draw();
+    
+    % Set Y axes to zero up to max
+    ylim(g(1,2).facet_axes_handles, [0, 1.1*max(get(g(1,2).facet_axes_handles,'YLim'))])
+    ylim(g(1,3).facet_axes_handles, [0, 1.1*max(get(g(1,3).facet_axes_handles,'YLim'))])
+    
+    
+    % Print linear fits in both the normal and intuitive formats
+    % Specify intuitive parameters; "Intuitive format" is what I am calling the
+    % form in which the value (Vpk2pk or latency) at the scaling factor of 1 is
+    % one of the parameters, and the *relative* change in that value due to some
+    % feasible amount of change in scaling factor (e.g., 10%) is another
+    % parameter. So it just rearranges the linear fit algebraically to be in
+    % this more redily interpretable form.
+    intuitive_x0 = 1; % [unitless]
+    intuitive_delta_x = 0.1; % [unitless]
+    
+    for j = 2:3
+        if j==2
+            value_name = 'Vpk2pk';
+        elseif j==3
+            value_name = 'latency';
+        end
+        % Print linear fit stats for Vpk2pk
+        fit_obj = g(1,j).results.stat_glm.model;
+        % Print in a normal format
+        fprintf('(normal format) %s = %0.2f + %0.2f*scaling\n',...
+            value_name,...
+            fit_obj.Coefficients.Estimate(1),...
+            fit_obj.Coefficients.Estimate(2));
+        % Print in a intuitive format
+        intuitive_intercept = fit_obj.Coefficients.Estimate(2)*intuitive_x0 + fit_obj.Coefficients.Estimate(1);
+        intuitive_slope = fit_obj.Coefficients.Estimate(2)*intuitive_delta_x/intuitive_intercept;
+        fprintf('(intuitive format) Vpk2pk = %0.2f*(1 + %0.2f*(scaling-%0.2f)/%0.2f))\n',...
+            intuitive_intercept,intuitive_slope,intuitive_x0,intuitive_delta_x);
+        fprintf('Adjusted R^2 = %0.2f\n',fit_obj.Rsquared.Adjusted)
+        fprintf('\n');
+    end
+    
+    % save figure
+    savefig(gcf,summary_fig_filename);
+    
+    %{
+    for idx=1:length(fiber_diameter_scaling_factors)
         plot(output_table.common_time_vector_ms{idx},1e-3*output_table.CAP_signal_uV{idx});
         xlabel('time (ms)');
         ylabel('CNAP (mV)');
@@ -713,14 +927,14 @@ for i = 1:2
     for line_ind = 1:length(lines)
         lines(line_ind).Color = new_colors(line_ind,:);
     end
-    legend(arrayfun(@(x) num2str(x,'%0.02f'), shrinkage_correction_factors,'UniformOutput',false),...
+    legend(arrayfun(@(x) num2str(x,'%0.02f'), fiber_diameter_scaling_factors,'UniformOutput',false),...
         'location','best','numcolumns',2);
     savefig(gcf,time_series_fig_filename);
     
     % Calculate and plot the peak-to-peak voltage and the latency
     Vpk2pk_mV = [];
     latency = [];
-    for idx = 1:length(shrinkage_correction_factors)
+    for idx = 1:length(fiber_diameter_scaling_factors)
         Vpk2pk_mV(idx) = 1e-3*(max(output_table.CAP_signal_uV{idx})-min(output_table.CAP_signal_uV{idx}));
         [~,negative_peak_ind] = min(output_table.CAP_signal_uV{idx});
         latency(idx) = output_table.common_time_vector_ms{idx}(negative_peak_ind);
@@ -730,20 +944,20 @@ for i = 1:2
     figure('color',[1 1 1]);
     % amplitude summary
     yyaxis left
-    plot(shrinkage_correction_factors,Vpk2pk_mV,'.-','MarkerSize',20);
+    plot(fiber_diameter_scaling_factors,Vpk2pk_mV,'.-','MarkerSize',20);
     xlabel('shrinkage correction factor');
     ylabel('V_{pk-pk} (mV)');
     set(gca,'FontSize',14);
     % latency summary
     yyaxis right
-    plot(shrinkage_correction_factors,latency,'.-','MarkerSize',20);
+    plot(fiber_diameter_scaling_factors,latency,'.-','MarkerSize',20);
     xlabel('shrinkage correction factor');
     ylabel('negative peak latency (ms)');
     set(gca,'FontSize',14);
+    %}
     
-    % save figure
-    savefig(gcf,summary_fig_filename);
 end
+
 
 function quantify_random_sampling_effects()
 
