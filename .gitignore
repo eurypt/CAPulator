@@ -1,0 +1,9 @@
+
+*.fig
+*.asv
+results/tuned_CNAP_model_data_table.mat
+results/baseline_CNAP_model_data_table.mat
+results/compare_Havton_to_Soltanpour_workspace.mat
+results/conduction_distance_effects_myel.mat
+results/conduction_distance_effects_unmyel.mat
+results/CV_vs_fiberD_effect.mat

@@ -165,7 +165,7 @@ classdef CAPulator
             % frequencies above 50 kHz and 8 kHz (via spectral subtraction) then downsample
             % to the signals to 16 kHz for unmyelinated fibers and 100 kHz for unmyelinated
             % fibers.
-            if (strcmp(fiber_type,'unmyel'))
+            if (strcmp(fiber_type,'unmyelinated'))
                 [fft_i,freq] = CAPulator.fft_wrapper(template_data_matrix,[],[],1/(1e-3*mode(diff(common_time_vector_ms))));
                 cutoff_freq_Hz = 8e3;
                 fft_i2 = fft_i(abs(freq)<=cutoff_freq_Hz,:);
@@ -226,16 +226,16 @@ classdef CAPulator
             % diameters; if the fiber type is unmyelinated, interpolate CV *squared* linearly
             % across fiber diameters. Since the square of the CV for unmyelinated fibers is a
             % linear function of fiber diameter, this approach produces better CV estimates
-            if (strcmp(fiber_type,'myel'))
+            if (strcmp(fiber_type,'myelinated'))
                 CV_interpolated_all_fibers = interp1(all_fiber_diameters,...
                     all_conduction_velocity_m_per_s,...
                     query_fiber_diameter_interpolated_all,interp_type);
-            elseif (strcmp(fiber_type,'unmyel'))
+            elseif (strcmp(fiber_type,'unmyelinated'))
                 CV_interpolated_all_fibers = sqrt(interp1(all_fiber_diameters,...
                     all_conduction_velocity_m_per_s.^2,...
                     query_fiber_diameter_interpolated_all,interp_type));
             else
-                error('fiber_type must be either myel or unmyel');
+                error('fiber_type must be either myelinated or unmyelinated');
             end
             CV_interpolated_at_unique_diameters = CV_interpolated_all_fibers(IA);
             
@@ -373,11 +373,11 @@ classdef CAPulator
                 % having no clear negative impact at the larger fiber diameters
                 %     interp_peak_time_ms = 1/(left_weight*1/reference_peak_times_all_templates(left_ind) + ...
                 %         right_weight*1/reference_peak_times_all_templates(right_ind)); % [ms]
-                if (strcmp(fiber_type,'myel'))
+                if (strcmp(fiber_type,'myelinated'))
                     interp_peak_time_ms = 1/interp1(all_fiber_diameters,1./reference_peak_times_all_templates,...
                         unique_fiber_diameters(unique_fiber_diameter_ind));
                     
-                elseif (strcmp(fiber_type,'unmyel'))
+                elseif (strcmp(fiber_type,'unmyelinated'))
                     % Assuming the starting location and the ref location are the same for
                     % all axons (i.e., delta_x is constant), and knowing that CV *squared*
                     % for unmyelianted fibers is a linear function of fiber diameter, the
@@ -611,7 +611,7 @@ classdef CAPulator
                 distance_between_compartments_or_nodes_all_fibers] = get_straight_fiber_xyz_coords(...
                 fiber_type,geometry_determination_method, fiber_diameters_um,xy_coords,LENGTH_AXONS,DESIRED_CENTER,n_stin_per_segment,flag_jitter_z)
             
-            assert(strcmp(fiber_type,'myel')==1 || strcmp(fiber_type,'unmyel')==1, 'Invalid fiber_type value')
+            assert(strcmp(fiber_type,'myelinated')==1 || strcmp(fiber_type,'unmyelinated')==1, 'Invalid fiber_type value')
             % if xy_coords has only one row, assume the user specified a row vector,
             % and transpose it to make the expected column vector
             if (size(xy_coords,1)==1)
@@ -630,7 +630,7 @@ classdef CAPulator
                 flag_jitter_z = 0;
             end
             
-            if (strcmp(fiber_type,'myel'))
+            if (strcmp(fiber_type,'myelinated'))
                 n_compartments_per_repeatable_unit = n_stin_per_segment+5; % Code expects a total of one node, two MYSA, two FLUT, and however many STIN (so # STIN + 5 comparments per repeatable unit; this is asserted below
             else
                 n_compartments_per_repeatable_unit = 1;
@@ -640,7 +640,7 @@ classdef CAPulator
             
             for fiber_idx = 1:length(fiber_diameters_um)
                 
-                if (strcmp(fiber_type,'myel'))
+                if (strcmp(fiber_type,'myelinated'))
                     obj.fiber_dependency_method = geometry_determination_method;
                     obj.fiber_diameter = fiber_diameters_um(fiber_idx);
                     
@@ -696,8 +696,8 @@ classdef CAPulator
                 end
                 
                 
-                %%% Calculate the distance between two adjancent compartments (unmyel) or
-                %%% nodes (myel)
+                %%% Calculate the distance between two adjancent compartments (unmyelinated) or
+                %%% nodes (myelinated)
                 distance_between_compartments_or_nodes_all_fibers(fiber_idx) = INTERNODAL_DISTANCE;
                 
                 % if specified, add jitter to z coords by up to half internodal
@@ -730,9 +730,24 @@ classdef CAPulator
                 common_time_vector_ms,template_data_matrix,reference_peak_times_all_templates,...
                 reference_compartment_locations_um_all_templates,fiber_type] = ...
                 get_template_data(template_data_source_filename,flag_dipole)
-            
+            arguments
+                template_data_source_filename
+                flag_dipole = 1 % use dipolar templates by default
+            end
+
             %%% Load data
             load(template_data_source_filename,'output_data_structure','fiber_type');
+            % Ensure output_data_structure is a column vector
+            if (size(output_data_structure,2)>1)
+                output_data_structure = transpose(output_data_structure);
+            end
+            % Ensure fiber_type is spelled out
+            if (strcmp(fiber_type,'myel'))
+                fiber_type = 'myelinated';
+            end
+            if (strcmp(fiber_type,'unmyel'))
+                fiber_type = 'unmyelinated';
+            end
             n_time_points = length(output_data_structure(1).temporal_templates);
             n_templates = length(output_data_structure);
             % identify whether to process (monopole) temporal templates or dipole
@@ -772,15 +787,14 @@ classdef CAPulator
             
             common_time_vector_ms = output_data_structure(1).common_time_vector_ms;
             
-            % all_fiber_types = vertcat(output_data_structure.all_fiber_types);
-            all_fiber_diameters = vertcat(output_data_structure.all_fiber_diameters);
-            all_conduction_velocity_m_per_s = vertcat(output_data_structure.all_conduction_velocity_m_per_s);
+            all_fiber_diameters = vertcat(output_data_structure.fiber_diameter);
+            all_conduction_velocity_m_per_s = vertcat(output_data_structure.conduction_velocity_m_per_s);
             
             
             % Restore stim pulse offset to the template peak timing
-            if (strcmp(fiber_type,'myel'))
+            if (strcmp(fiber_type,'myelinated'))
                 reference_peak_times_all_templates = reference_peak_times_all_templates + 0.1; % [ms]
-            elseif (strcmp(fiber_type,'unmyel'))
+            elseif (strcmp(fiber_type,'unmyelinated'))
                 reference_peak_times_all_templates = reference_peak_times_all_templates + 0.4; % [ms]
             end
             

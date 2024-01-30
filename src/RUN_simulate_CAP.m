@@ -79,7 +79,7 @@ parameter_files = {
 model_data_table = [];
 for i = 1:size(parameter_files,1)
     params = loadjson(parameter_files{i,1});
-    
+
     % Print a message indicating which parameter file is being used
     fprintf('Simulating  %s\n',parameter_files{i,1});
     % Run the simulation
@@ -88,7 +88,7 @@ for i = 1:size(parameter_files,1)
     conduction_distance = 11 - params.stim_location_change_mm;
     data_type = {'model'};
     fiber_type = {parameter_files{i,2}};
-    
+
     % Save the data to a table
     data_table_i = table({params.extracellular_recording_model_filename},{final_time_vector_ms},{CNAP_signal_uV},...
         channel_numbers,conduction_distance,fiber_type,data_type, ...
@@ -126,7 +126,7 @@ parameter_files = {
 model_data_table = [];
 for i = 1:size(parameter_files,1)
     params = loadjson(parameter_files{i,1});
-    
+
     % Print a message indicating which parameter file is being used
     fprintf('Simulating  %s\n',parameter_files{i,1});
     % Run the simulation
@@ -135,7 +135,7 @@ for i = 1:size(parameter_files,1)
     conduction_distance = 11 - params.stim_location_change_mm;
     data_type = {'model'};
     fiber_type = {parameter_files{i,2}};
-    
+
     % Save the data to a table
     data_table_i = table({params.extracellular_recording_model_filename},{final_time_vector_ms},{CNAP_signal_uV},...
         channel_numbers,conduction_distance,fiber_type,data_type, ...
@@ -246,7 +246,7 @@ for i = 1:size(in_vivo_data_table,1)
     % Get the peak-to-peak amplitude
     Vpk2pk(i) = max(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2))) - ...
         min(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2)));
-    
+
     is_model_data{i} = 'in vivo';
 end
 
@@ -269,7 +269,7 @@ for i = 1:size(model_data_table,1)
     % Get the peak-to-peak amplitude
     Vpk2pk(i+size(in_vivo_data_table,1)) = max(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2))) - ...
         min(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2)));
-    
+
     is_model_data{i+size(in_vivo_data_table,1)} = 'model';
 end
 
@@ -297,27 +297,17 @@ set(g.facet_axes_handles(1),'YMinorTick','off');
 set(g.facet_axes_handles(2),'YMinorTick','off');
 set(g.facet_axes_handles(3),'YMinorTick','off');
 set(g.facet_axes_handles(4),'YMinorTick','off');
-% Set all xlim to be 5 to 16 mm 
+% Set all xlim to be 5 to 16 mm
 set(g.facet_axes_handles(1),'XLim',[5 16]);
 set(g.facet_axes_handles(2),'XLim',[5 16]);
 set(g.facet_axes_handles(3),'XLim',[5 16]);
 set(g.facet_axes_handles(4),'XLim',[5 16]);
 
-
-
-
-
-
-
-
-
-
-
 function plot_comparison_brute_force_vs_efficient()
 % Load the in vivo data
 clearvars brute_force
-brute_force(1) = load('../results/ground_truth_CNAP_myel.mat','time_vector','CNAP_signal_uV','time_offset_ms');
-brute_force(2) = load('../results/ground_truth_CNAP_unmyel.mat','time_vector','CNAP_signal_uV','time_offset_ms');
+brute_force(1) = load('../results/brute_force_CNAP_myel.mat','time_vector','CNAP_signal_uV','time_offset_ms');
+brute_force(2) = load('../results/brute_force_CNAP_unmyel.mat','time_vector','CNAP_signal_uV','time_offset_ms');
 
 % Plot the results
 clearvars g
@@ -368,10 +358,10 @@ for i = 1:2
     else
         error('invalid value of i: %d')
     end
-    
+
     % Load base parameters file
     params = loadjson(base_parameters_filename);
-    
+
     % Run the CNAP after changing the multiple conduction distances
     n_distances = 10;
     % the default edge-to-edge distance is 9232.5 um (when the center-to-center distance is 11 mm with a
@@ -384,7 +374,7 @@ for i = 1:2
     %
     edge_to_edge_distance_mm = logspace(log10(4),log10(100),n_distances);
     stim_location_change_mm = KNOWN_CONDUCTION_DISTANCE_MM - 1.7675 - edge_to_edge_distance_mm;
-    
+
     % indicate the known location of the recording electrode to later label
     % the plots in terms of conduction distance rather than AP start
     % location
@@ -392,15 +382,15 @@ for i = 1:2
     for idx = 1:length(stim_location_change_mm)
         % Print a message indicating which parameter file is being used
         fprintf('Simulating conduction distance %d of %d with %s\n',idx,length(stim_location_change_mm),base_parameters_filename);
-        
+
         % set first AP location
         params.stim_location_change_mm = stim_location_change_mm(idx);
         output_table = vertcat(output_table,process_params(params));
     end
-    
+
     % calculate conduction distance to label the plots
     conduction_distances_all_mm = KNOWN_CONDUCTION_DISTANCE_MM - stim_location_change_mm;
-    
+
     %{
         The workspace variables include the
         following key variables:
@@ -430,14 +420,14 @@ for i = 1:2
     else
         error('invalid value of i: %d')
     end
-    
+
     dataset_i = load(workspace_filename,'output_table','conduction_distances_all_mm');
     % Add a column to the table to indicate the fiber type
     dataset_i.output_table.fiber_type = repmat({fiber_type},size(dataset_i.output_table,1),1);
     % Add a column to the table to indicate the conduction distance; conduction distance has the same number of rows as the table
     dataset_i.output_table.conduction_distances_all_mm = dataset_i.conduction_distances_all_mm';
     output_table = vertcat(output_table,dataset_i.output_table);
-    
+
 end
 
 % Plot subset of signals to illustrate temporal dispersion
@@ -535,12 +525,12 @@ for i = 1:4
         otherwise
             error('invalid value of i: %d')
     end
-    
+
     % Load base parameters file
     params = loadjson(base_parameters_filename);
-    
+
     [CAP_signal_uV, common_time_vector_ms, ~] = CAPulator.calculate_CAP_via_temporal_templates(params);
-    
+
     output_data_structure.pseudonym = vertcat(...
         output_data_structure.pseudonym, {pseudonym});
     output_data_structure.flag_myelinated = vertcat(...
@@ -587,7 +577,7 @@ for i = 0:1
     g.geom_line();
     figure('position',[680,679,885,299]);
     g.draw();
-    
+
     % Plot the histograms of fiber diameters
     clearvars g
     g = gramm('x',output_data_structure.fiber_diameters_in_nerve_um,...
@@ -598,8 +588,8 @@ for i = 0:1
     g.stat_bin('edges',edges,'geom','overlaid_bar');
     figure('position',[680,679,885,299]);
     g.draw();
-    
-    
+
+
 end
 
 % Print out summary metrics for each fiber type and the fiber type and pseudonym
@@ -637,57 +627,55 @@ z_jitter_options = [0 1];
 all_pseudonyms_and_distances = {
     % same as model A001, except D vs. V is fit to the biophysical model D vs. V
     'model default',14e3,1,random_seeds(1),@(D,V) 3.877*D - 2.491 ,z_jitter_options(1),1
-    
+
     % same as model A002, except slope coefficient is halved/double
     'faster',14e3,1,random_seeds(1),@(D,V) (3.877*sqrt(2))*D - 2.491 ,z_jitter_options(1),1
     'slower',14e3,1,random_seeds(1),@(D,V) (3.877/sqrt(2))*D - 2.491 ,z_jitter_options(1),1
-    
+
     % same as model A002, except D vs. V is fit to Hursh 1939
     'Hursh 1939',14e3,1,random_seeds(1),@(D,V) 5.972*D - 3.297,z_jitter_options(1),1
-    
+
     % same as model A007, except D vs. V is fit to the biophysical model D vs. V
     'model default',14e3,0,random_seeds(1),@(D,V) 0.7842*sqrt(D) + 0.004242,z_jitter_options(1),1
-    
+
     % same as model A008, except slope coefficient is halved/double
     'faster',14e3,0,random_seeds(1),@(D,V) (0.7842*sqrt(2))*sqrt(D) + 0.004242,z_jitter_options(1),1
     'slower',14e3,0,random_seeds(1),@(D,V) (0.7842/sqrt(2))*sqrt(D) + 0.004242,z_jitter_options(1),1
-    
+
     % same as model A008, except D vs. V is linear fit to Hoffmeister 1991 Fig 5A
     'Hoffmeister 1991',14e3,0,random_seeds(1),@(D,V) 0.6496*D + 0.1309,z_jitter_options(1),1
-    
+
     };
 
 
 for params_i = 1:size(all_pseudonyms_and_distances,1)
     % Specify pseudonym
     pseudonym = all_pseudonyms_and_distances{params_i,1};
-    
+
     flag_myelinated = all_pseudonyms_and_distances{params_i,3};
-    
+
     % manually modify the fiberD-to-CV relationship in a temporary template
     % data source file to iterate through the effect of different possible
     % relationships.
     if (flag_myelinated)
         base_parameters_filename = '../JSON_input_params/RUN_CNAP_20221004_ASCENT_myel.json';
-        fiber_type_label = 'myel';
         adjust_ms = 0.1; % [ms] adjust for the stimulus artifact
     else
         base_parameters_filename = '../JSON_input_params/RUN_CNAP_20221004_ASCENT_unmyel.json';
-        fiber_type_label = 'unmyel';
         adjust_ms = 0.4; % [ms] adjust for the stimulus artifact
     end
-    
+
     % Load base parameters file
     params = loadjson(base_parameters_filename);
-    
+
     % Load the original template data
-    original_template_data = load(params.template_data_source_filename,'output_data_structure','fiber_type');
-    
+    original_template_data = load(params.template_data_source_filename,'output_data_structure');
+
     % Set new CV values for each fiber diameter using a new specified
     % relationship
-    old_CV = vertcat([original_template_data.output_data_structure.all_conduction_velocity_m_per_s]);
+    old_CV = horzcat([original_template_data.output_data_structure.conduction_velocity_m_per_s]);
     new_CV = all_pseudonyms_and_distances{params_i,5}(...
-        vertcat([original_template_data.output_data_structure.all_fiber_diameters]),...
+        horzcat([original_template_data.output_data_structure.fiber_diameter]),...
         old_CV);
     % Also adjust reference_peak_times_all_templates to reflect the new CV
     assert(all(new_CV>0),'All new CV values must be positive')
@@ -698,21 +686,21 @@ for params_i = 1:size(all_pseudonyms_and_distances,1)
         original_template_data.output_data_structure(cv_ind).reference_peak_time_i_ms = ...
             (original_template_data.output_data_structure(cv_ind).reference_peak_time_i_ms+adjust_ms) * ...
             old_CV(cv_ind) / new_CV(cv_ind) - adjust_ms;
-        original_template_data.output_data_structure(cv_ind).all_conduction_velocity_m_per_s = new_CV(cv_ind);
-        
+        original_template_data.output_data_structure(cv_ind).conduction_velocity_m_per_s = new_CV(cv_ind);
+
     end
-    
+
     % Specify the temporary template data filename; the modified CV values and
     % original other data will be stored in here for CAP generation
     temporary_template_data_source_filename = 'temporary_template_data.mat';
     save(temporary_template_data_source_filename,'-struct','original_template_data');
-    
+
     % Update the params structure to point to the temporary template data
     params.template_data_source_filename = temporary_template_data_source_filename;
-    
+
     % Calculate CAP using temporal template method
     [CAP_signal_uV, common_time_vector_ms, ~] = CAPulator.calculate_CAP_via_temporal_templates(params);
-    
+
     % Store CNAP data into a structure
     if (params_i==1)
         output_data_structure = [];
@@ -730,10 +718,10 @@ for params_i = 1:size(all_pseudonyms_and_distances,1)
         output_data_structure.common_time_vector_ms = vertcat(...
             output_data_structure.common_time_vector_ms,{common_time_vector_ms});
     end
-    
+
     % Clean up: Delete the temporary template data file
     delete(temporary_template_data_source_filename);
-    
+
 end
 
 % Save output_data_structure
@@ -751,7 +739,7 @@ for i = 0:1
         x_bounds = [0,2.5]; % [ms]
         svg_filename = 'CV_vs_D_effect_unmyelinated';
     end
-    
+
     clearvars g
     g = gramm('x',output_data_structure.common_time_vector_ms,...
         'y',cellfun(@(signal) signal/1e3, output_data_structure.CAP_signal_uV, 'UniformOutput',false),...
@@ -788,10 +776,10 @@ for i = 1:2
     else
         error('invalid value of i: %d')
     end
-    
+
     % Load base parameters file
     params = loadjson(base_parameters_filename);
-    
+
     % Run the CNAP across multiple shrinkage correction factors
     % fiber_diameter_scaling_factors = [0.8:0.05:1.2];
     fiber_diameter_scaling_factors = logspace(log10(1/1.2),log10(1.2),13);
@@ -804,14 +792,14 @@ for i = 1:2
     % Print the nmber of original and valid fibers
     fprintf('number of original fibers: %d\n',length(original_fiber_diameters_um));
     fprintf('number of valid fibers after considering all scaling to be done: %d\n',length(valid_fibers));
-    
-    
+
+
     output_table = [];
     for idx=1:length(fiber_diameter_scaling_factors)
         params.fiber_diameters_in_nerve_um = fiber_diameter_scaling_factors(idx)*original_fiber_diameters_um(valid_fibers);
         output_table = vertcat(output_table,process_params(params));
     end
-    
+
     if (i==1)
         % Save the workspace
         save('../results/whats_myelinated_fiber_diameter_got_to_do_got_to_do_with_it.mat','output_table','fiber_diameter_scaling_factors');
@@ -819,8 +807,8 @@ for i = 1:2
         % Save the workspace
         save('../results/whats_unmyelinated_fiber_diameter_got_to_do_got_to_do_with_it.mat','output_table','fiber_diameter_scaling_factors');
     end
-    
-    
+
+
 end
 
 function plot_shrinkage_effects()
@@ -836,8 +824,8 @@ for i = 1:2
     else
         error('invalid value of i: %d')
     end
-    
-    
+
+
     % Plot all CNAPs vs. time (overlaid)
     figure('position',[469,74,1098,391]);
     clearvars g
@@ -851,7 +839,7 @@ for i = 1:2
     g(1,1).axe_property('XLim',x_bounds);
     g(1,1).set_continuous_color('colormap','parula');
     g(1,1).set_layout_options('legend_position',[0.22 0.65 0.1 0.35]);
-    
+
     g(1,2) = gramm('x',fiber_diameter_scaling_factors,...
         'y',cellfun(@(signal) max(signal/1e3)-min(signal/1e3), output_table.CAP_signal_uV));
     g(1,2).geom_point();
@@ -860,7 +848,7 @@ for i = 1:2
     g(1,2).set_names('x','fiber diameter scaling','y','V_{pk-pk} (mV)');
     g(1,2).set_text_options('interpreter','tex','base_size',14);
     g(1,2).axe_property('XLim',[0.91*min(fiber_diameter_scaling_factors),1.1*max(fiber_diameter_scaling_factors)]);
-    
+
     g(1,3) = gramm('x',fiber_diameter_scaling_factors,...
         'y',cellfun(@(signal,time) time(signal==min(signal)), output_table.CAP_signal_uV, output_table.common_time_vector_ms));
     g(1,3).geom_point();
@@ -869,14 +857,14 @@ for i = 1:2
     g(1,3).set_names('x','fiber diameter scaling','y','negative peak latency (ms)');
     g(1,3).set_text_options('interpreter','tex','base_size',14);
     g(1,3).axe_property('XLim',[0.91*min(fiber_diameter_scaling_factors),1.1*max(fiber_diameter_scaling_factors)]);
-    
+
     g.draw();
-    
+
     % Set Y axes to zero up to max
     ylim(g(1,2).facet_axes_handles, [0, 1.1*max(get(g(1,2).facet_axes_handles,'YLim'))])
     ylim(g(1,3).facet_axes_handles, [0, 1.1*max(get(g(1,3).facet_axes_handles,'YLim'))])
-    
-    
+
+
     % Print linear fits in both the normal and intuitive formats
     % Specify intuitive parameters; "Intuitive format" is what I am calling the
     % form in which the value (Vpk2pk or latency) at the scaling factor of 1 is
@@ -886,7 +874,7 @@ for i = 1:2
     % this more redily interpretable form.
     intuitive_x0 = 1; % [unitless]
     intuitive_delta_x = 0.1; % [unitless]
-    
+
     for j = 2:3
         if j==2
             value_name = 'Vpk2pk';
@@ -908,10 +896,10 @@ for i = 1:2
         fprintf('Adjusted R^2 = %0.2f\n',fit_obj.Rsquared.Adjusted)
         fprintf('\n');
     end
-    
+
     % save figure
     savefig(gcf,summary_fig_filename);
-    
+
     %{
     for idx=1:length(fiber_diameter_scaling_factors)
         plot(output_table.common_time_vector_ms{idx},1e-3*output_table.CAP_signal_uV{idx});
@@ -955,7 +943,7 @@ for i = 1:2
     ylabel('negative peak latency (ms)');
     set(gca,'FontSize',14);
     %}
-    
+
 end
 
 
@@ -965,7 +953,7 @@ function quantify_random_sampling_effects()
 % run comparisons for both myelinated and ummyelinated
 ouptut_data_structure = [];
 for i=1:2
-    
+
     % Load base parameters file
     if (i==1)
         flag_myelinated = 1;
@@ -980,7 +968,7 @@ for i=1:2
         random_samples_filename = 'random_samples_myelinated';
         nbins_effects_filename = 'nbins_effects_myelinated';
         histograms_nbins_filename = 'histograms_nbins_myelinated';
-        
+
     elseif (i==2)
         flag_myelinated = 0;
         base_parameters_filename = '../JSON_input_params/RUN_CNAP_20221004_ASCENT_unmyel.json';
@@ -996,18 +984,18 @@ for i=1:2
         random_samples_filename = 'random_samples_unmyelinated';
         nbins_effects_filename = 'nbins_effects_unmyelinated';
         histograms_nbins_filename = 'histograms_nbins_unmyelinated';
-        
-        
+
+
     else
         error('invalid value of i: %d')
     end
-    
+
     params = loadjson(base_parameters_filename);
-    
+
     % Define base fiber diameters
     original_values = params.fiber_diameters_in_nerve_um;
-    
-    
+
+
     % Run the CNAP across multiple random sets of fiber diameters derived
     % form the same fiber diameter distribution
     bin_derived_values = {};
@@ -1015,7 +1003,7 @@ for i=1:2
     centers = {};
     bin_sizes = [];
     for bin_ind=1:length(n_bins)
-        
+
         edges_i = linspace(min(original_values),max(original_values),n_bins(bin_ind)+1);
         [counts_i,~,bin] = histcounts(original_values,edges_i);
         bin_sizes(bin_ind) = mode(diff(edges_i));
@@ -1027,7 +1015,7 @@ for i=1:2
         counts{bin_ind} = [0,counts_i,0];
         centers{bin_ind} = [min(centers_i)-bin_sizes(bin_ind),centers_i,max(centers_i)+bin_sizes(bin_ind)];
     end
-    
+
     % make a pseudo-histogram plot using the centers and counts by making a
     % vector of edges; I did it this way because the gramm overlaid_bar
     % option does not allow changing the bin size for each group
@@ -1045,16 +1033,16 @@ for i=1:2
     figure('position',[244,697,1526,246]);
     g.draw();
     % g.export('file_name',histograms_nbins_filename,'file_type','svg');
-    
-    
+
+
     output_table = [];
     for bin_ind=1:length(n_bins)
         params.fiber_diameters_in_nerve_um = bin_derived_values{bin_ind}';
         output_table_i = process_params(params);
         output_table = vertcat(output_table,output_table_i);
     end
-    
-    
+
+
     clearvars g
     g = gramm('x',output_table.common_time_vector_ms,'y',output_table.CAP_signal_uV,...
         'color',round(bin_sizes,2));
@@ -1068,7 +1056,7 @@ for i=1:2
     figure('position',[244,697,1526,281]);
     g.draw();
     % g.export('file_name',nbins_effects_filename,'file_type','svg');
-    
+
     % run each bin size with multiple random seeds
     output_data_structure.random_seed = [];
     output_data_structure.bin_size = [];
@@ -1081,24 +1069,24 @@ for i=1:2
                 random_seeds(seed_ind));
             output_data_structure.bin_size = vertcat(output_data_structure.bin_size,...
                 bin_sizes(bin_ind));
-            
+
             %%% Calculate the random samples using inverse transform sampling
             randomly_sampled_fiber_diameters = inverse_transform_sample_histogram(...
                 centers{bin_ind},counts{bin_ind},random_seeds(seed_ind),...
                 length(bin_derived_values{bin_ind}));
-            
+
             params.fiber_diameters_in_nerve_um = randomly_sampled_fiber_diameters';
-            
+
             [CAP_signal_uV, common_time_vector_ms, ~] = ...
                 CAPulator.calculate_CAP_via_temporal_templates(params);
-            
+
             output_data_structure.CAP_signal_uV = vertcat(...
                 output_data_structure.CAP_signal_uV,{CAP_signal_uV});
             output_data_structure.common_time_vector_ms = vertcat(...
                 output_data_structure.common_time_vector_ms,{common_time_vector_ms});
         end
     end
-    
+
     clearvars g
     %     g = gramm('x',output_data_structure.common_time_vector_ms,'y',output_data_structure.CAP_signal_uV,...
     %         'color',round(output_data_structure.bin_size,2),'subset',output_data_structure.random_seed==1);
@@ -1121,272 +1109,282 @@ end
 Plot the sensitivity analysis results for the myelinated and unmyelinated
 
 %}
-%{
-
-
-Plot the sensitivity analysis results for the myelinated and unmyelinated
-
-%}
 function plot_sensitivity_analysis_results
 
-    flag_myelinated=0;
-    plot_for_fiber_type(flag_myelinated)
-    
-    flag_myelinated = 1;
-    plot_for_fiber_type(flag_myelinated)
-    
-    
-    
-    function plot_for_fiber_type(flag_myelinated)
-    
-    arguments
-        flag_myelinated
+flag_myelinated = 1;
+plot_for_fiber_type(flag_myelinated)
+
+flag_myelinated=0;
+plot_for_fiber_type(flag_myelinated)
+
+function plot_for_fiber_type(flag_myelinated)
+
+arguments
+    flag_myelinated
+end
+
+output_table = load_sensitivity_analysis_results(flag_myelinated);
+sensitivity_analysis_table = convert_COMSOL_sweep_txt_to_table('../results/sens_analysis_full.txt');
+
+% Create a data structure that contains the same fields as the table, but
+% where each field is parsed for a number, then add in a field containing
+% the desired data of interest
+sensitivity_analysis_struct = [];
+for j = 1:length(sensitivity_analysis_table.Properties.VariableNames)
+    for i = 1:length(sensitivity_analysis_table.(sensitivity_analysis_table.Properties.VariableNames{j}))
+        sensitivity_analysis_struct.(sensitivity_analysis_table.Properties.VariableNames{j})(i) = ...
+            sensitivity_analysis_table.(sensitivity_analysis_table.Properties.VariableNames{j})(i);
     end
-    
-    if (flag_myelinated==1)
-        load('../results/myelinated_fiber_CNAPs_across_materials.mat','sensitivity_analysis_table','output_table');
-    elseif (flag_myelinated==0)
-        load('../results/unmyelinated_fiber_CNAPs_across_materials.mat','sensitivity_analysis_table','output_table')
-    else
-        error('Invalid value of flag_myelinated')
+end
+% warning('doing rms instead of pk2pk')
+for i = 1:size(sensitivity_analysis_table,1)
+    sensitivity_analysis_struct.anisotropy_ratio_vals(i) = ...
+        round(sensitivity_analysis_struct.sigma_endoneurium_z(i)./...
+        sensitivity_analysis_struct.sigma_endoneurium_x(i),2);
+
+    % Add the desired metric to plot
+    sensitivity_analysis_struct.Vpk2pk(i) = max(output_table.CAP_signal{i}) - ...
+        min(output_table.CAP_signal{i});
+
+
+end
+sensitivity_analysis_struct.CAP_signals_all = cell2mat(output_table.CAP_signal');
+sensitivity_analysis_struct.common_time_vector_ms = output_table.common_time_vector_ms(1,:)';
+
+%% Plot just a subset of the data to highlight key pieces of the story
+if (flag_myelinated)
+    ytick_locations = 2.^[5:12];
+else
+    ytick_locations = 2.^[7:14];
+end
+for i = 1:4
+    switch i
+        case 1
+            % Amplitude vs. fill
+            x_data = sensitivity_analysis_struct.sigma_fill;
+            x_data_label = '\sigma_{surround} (S/m)';
+            x_tick_label_format = '%0.2f';
+            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
+        case 2
+            % Amplitude vs. perineurial conductivity
+            x_data = sensitivity_analysis_struct.sigma_perineurium;
+            x_data_label = '\sigma_{perineurium} (S/m)';
+            x_tick_label_format = '%0.1e';
+            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6) & ...
+                ~isinf(sensitivity_analysis_struct.sigma_perineurium); % skip the Inf case, since this has no perineurium
+        case 3
+            % Amplitude vs. longitudinal endoneural conductivity
+            x_data = sensitivity_analysis_struct.sigma_endoneurium_z;
+            x_data_label = '\sigma_{z} (S/m)';
+            x_tick_label_format = '%0.2f';
+            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                round(sensitivity_analysis_struct.sigma_fill,2)==1.76 & ...
+                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
+        case 4
+            % Amplitude vs. endoneural anisotropy
+            x_data = sensitivity_analysis_struct.anisotropy_ratio_vals;
+            x_data_label = '\sigma_z / \sigma_r';
+            x_tick_label_format = '%0.2f';
+            subset_indices = round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                round(sensitivity_analysis_struct.sigma_fill,2)==1.76 & ...
+                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
+        otherwise
+            error('Invalid case in switch statement');
     end
 
-    % Create a data structure that contains the same fields as the table, but
-    % where each field is parsed for a number, then add in a field containing
-    % the desired data of interest
-    sensitivity_analysis_struct = [];
-    for j = 1:length(sensitivity_analysis_table.Properties.VariableNames)
-        for i = 1:length(sensitivity_analysis_table.(sensitivity_analysis_table.Properties.VariableNames{j}))
-            sensitivity_analysis_struct.(sensitivity_analysis_table.Properties.VariableNames{j})(i) = ...
-                sensitivity_analysis_table.(sensitivity_analysis_table.Properties.VariableNames{j})(i);
-        end
+    y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
+    color_data = 360-sensitivity_analysis_struct.Theta_CylUm300t_20230323_001;
+
+    clear g
+    g=gramm('x',x_data,...
+        'y',y_data,...
+        'color',color_data,...
+        'subset',subset_indices);
+
+    g.geom_line();
+    g.geom_point();
+
+    xtick_vals =  unique(x_data);
+    xtick_labels = arrayfun(@(x) num2str(x,x_tick_label_format),xtick_vals,'UniformOutput',false);
+    g.set_names('x',x_data_label,'y','V_{pk-pk} (\muV)','color','cuff opening (\deg)');
+    g.axe_property('YScale','log','XScale','log','YMinorTick','off','YGrid','on',...
+        'YMinorGrid','off','YTick',ytick_locations,'YLim',[min(ytick_locations),max(ytick_locations)],...
+        'XMinorTick','off','XLim',...
+        [min(x_data),max(x_data)],'XTick',xtick_vals,'XTickLabel',xtick_labels);
+    g.set_layout_options('legend',false);
+    g.set_text_options('interpreter','tex','base_size',12);
+    figure;
+    g.draw();
+end
+
+%% Plot all the data as a matrix
+if (flag_myelinated)
+    ytick_locations = 4.^[1:7];
+else
+    ytick_locations = 4.^[2:8];
+end
+for i =1:2
+    switch i
+        case 1
+            x_data = sensitivity_analysis_struct.sigma_fill;
+            x_data_label = '\sigma_{surround} (S/m)';
+            x_tick_label_format = '%0.2f';
+            subset_indices = sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001==360;
+
+        case 2
+            x_data = sensitivity_analysis_struct.sigma_fill;
+            x_data_label = '\sigma_{surround} (S/m)';
+            x_tick_label_format = '%0.2f';
+            subset_indices = sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001==344;
+        otherwise
+            error('Invalid case value')
     end
-    % warning('doing rms instead of pk2pk')
-    for i = 1:size(sensitivity_analysis_table,1)
-        sensitivity_analysis_struct.anisotropy_ratio_vals(i) = ...
-            round(sensitivity_analysis_struct.sigma_endoneurium_z(i)./...
-            sensitivity_analysis_struct.sigma_endoneurium_x(i),2);
-        
-        % Add the desired metric to plot
-        sensitivity_analysis_struct.Vpk2pk(i) = max(output_table.CAP_signal{i}) - ...
-            min(output_table.CAP_signal{i});
-        
+
+    y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
+    color_data = sensitivity_analysis_struct.sigma_perineurium;
+
+    clear g
+    g=gramm('x',x_data,...
+        'y',y_data,...
+        'color',color_data,...
+        'subset',subset_indices & sensitivity_analysis_struct.sigma_perineurium~=Inf);
+
+    g.facet_grid(round(sensitivity_analysis_struct.anisotropy_ratio_vals,2),...
+        round(sensitivity_analysis_struct.sigma_endoneurium_z,2));
+    g.geom_line();
+    g.geom_point();
+
+    xtick_vals =  unique(x_data);
+    xtick_labels = arrayfun(@(x) num2str(x,x_tick_label_format),xtick_vals,'UniformOutput',false);
+    g.set_names('row','\sigma_z / \sigma_r','column','\sigma_z (S/m)','x',x_data_label,...
+        'y','V_{pk-pk} (\muV)','color','\sigma_{perineurium} (S/m)');
+    g.axe_property('YScale','log','XScale','log','YMinorTick','off','YGrid','on',...
+        'YMinorGrid','off','YTick',ytick_locations,'YLim',[min(ytick_locations),max(ytick_locations)],...
+        'XMinorTick','off','XLim',...
+        [min(x_data),max(x_data)],'XTick',xtick_vals,'XTickLabel',xtick_labels);
+    g.set_layout_options('legend',true);
+    g.set_text_options('interpreter','tex','base_size',10);
+
+    figure('units','normalized','outerposition',[0 0 1 1]);
+    g.draw();
+
+    g.update('x',x_data,...
+        'y',y_data,...
+        'color',color_data,...
+        'subset',subset_indices & sensitivity_analysis_struct.sigma_perineurium==Inf);
+    g.geom_line();
+    g.set_color_options('map',[0 0 0]);
+    g.set_line_options("styles",{'--'});
+    g.draw();
+end
+
+
+%% Plot waveforms for a subset of the data to highlight key pieces of the waveform effects story
+if (flag_myelinated)
+    x_bounds = [0,2];
+else
+    x_bounds = [2,37];
+end
+for i = 1:4
+    switch i
+        case 1
+            % Waveform vs. fill
+            x_data = sensitivity_analysis_struct.common_time_vector_ms';
+            x_data_label = 'time (ms)';
+            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
+            color_data = sensitivity_analysis_struct.sigma_fill;
+            color_data_label = '\sigma_{surround} (S/m)';
+        case 2
+            % Waveform vs. perineurial conductivity
+            x_data = sensitivity_analysis_struct.common_time_vector_ms';
+            x_data_label = 'time (ms)';
+            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6) & ...
+                ~isinf(sensitivity_analysis_struct.sigma_perineurium);
+            color_data = sensitivity_analysis_struct.sigma_perineurium;
+            color_data_label = '\sigma_{perineurium} (S/m)';
+        case 3
+            % Waveform vs. longitudinal endoneural conductivity
+            x_data = sensitivity_analysis_struct.common_time_vector_ms';
+            x_data_label = 'time (ms)';
+            subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
+                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6) & ...
+                round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
+            color_data = sensitivity_analysis_struct.sigma_endoneurium_z;
+            color_data_label = '\sigma_z (S/m)';
+        case 4
+            % Waveform vs. anisotropy
+            x_data = sensitivity_analysis_struct.common_time_vector_ms';
+            x_data_label = 'time (ms)';
+            subset_indices = round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
+                round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6) & ...
+                round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
+            color_data = sensitivity_analysis_struct.anisotropy_ratio_vals;
+            color_data_label = '\sigma_z / \sigma_r';
+        otherwise
+            error('Invalid case in switch statement');
     end
-    sensitivity_analysis_struct.CAP_signals_all = cell2mat(output_table.CAP_signal');
-    sensitivity_analysis_struct.common_time_vector_ms = output_table.common_time_vector_ms(1,:)';
-    
-    %% Plot just a subset of the data to highlight key pieces of the story
-    % warning('only plotting the no peri sims')
-    % for i = [1 3 4]
-    for i = 1:4
-        switch i
-            case 1
-                % Amplitude vs. fill
-                x_data = sensitivity_analysis_struct.sigma_fill;
-                x_data_label = '\sigma_{surround} (S/m)';
-                x_tick_label_format = '%0.2f';
-                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                    round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
-            case 2
-                
-                % Amplitude vs. perineurial conductivity
-                x_data = sensitivity_analysis_struct.sigma_perineurium;
-                x_data_label = '\sigma_{perineurium} (S/m)';
-                x_tick_label_format = '%0.1e';
-                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                    round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                    round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6) & ...
-                    ~isinf(sensitivity_analysis_struct.sigma_perineurium); % skip the Inf case, since this has no perineurium
-            case 3
-                % Amplitude vs. longitudinal endoneural conductivity
-                x_data = sensitivity_analysis_struct.sigma_endoneurium_z;
-                x_data_label = '\sigma_{z} (S/m)';
-                x_tick_label_format = '%0.2f';
-                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                    round(sensitivity_analysis_struct.sigma_fill,2)==1.76 & ...
-                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
-            case 4
-                % Amplitude vs. endoneural anisotropy
-                x_data = sensitivity_analysis_struct.anisotropy_ratio_vals;
-                x_data_label = '\sigma_z / \sigma_r';
-                x_tick_label_format = '%0.2f';
-                subset_indices = round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                    round(sensitivity_analysis_struct.sigma_fill,2)==1.76 & ...
-                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
-            otherwise
-                error('Invalid case in switch statement');
-        end
-        
-        y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
-        color_data = 360-sensitivity_analysis_struct.Theta_CylUm300t_20230323_001;
-        
-        clear g
-        g=gramm('x',x_data,...
-            'y',y_data,...
-            'color',color_data,...
-            'subset',subset_indices);
-        
-        g.geom_line();
-        g.geom_point();
-        
-        xtick_vals =  unique(x_data);
-        xtick_labels = arrayfun(@(x) num2str(x,x_tick_label_format),xtick_vals,'UniformOutput',false);
-        g.set_names('x',x_data_label,'y','V_{pk-pk} (\muV)','color','cuff opening (\deg)');
-        g.axe_property('YScale','log','XScale','log','YMinorTick','off','YGrid','on',...
-            'YMinorGrid','off',...
-            'XMinorTick','off','XLim',...
-            [min(x_data),max(x_data)],'XTick',xtick_vals,'XTickLabel',xtick_labels);
-        
-        if (flag_myelinated)
-            ytick_locations = 2.^[5:12];
-        else
-            ytick_locations = 2.^[7:14];
-        end
-        g.axe_property('YTick',ytick_locations,'YLim',[min(ytick_locations),max(ytick_locations)]);
-        
-        g.set_layout_options('legend',false);
-        g.set_text_options('interpreter','tex','base_size',12);
-        figure;
-        g.draw();
-    end
-    
-    %% Plot all the data as a matrix
-    % warning('disabled y lim to test out rms')
-    for i =1:2
-        switch i
-            case 1
-                x_data = sensitivity_analysis_struct.sigma_fill;
-                x_data_label = '\sigma_{surround} (S/m)';
-                x_tick_label_format = '%0.2f';
-                subset_indices = sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001==360;
-                
-            case 2
-                x_data = sensitivity_analysis_struct.sigma_fill;
-                x_data_label = '\sigma_{surround} (S/m)';
-                x_tick_label_format = '%0.2f';
-                subset_indices = sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001==344;
-            otherwise
-                error('Invalid case value')
-        end
-        
-        y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
-        color_data = sensitivity_analysis_struct.sigma_perineurium;
-        
-        clear g
-        g=gramm('x',x_data,...
-            'y',y_data,...
-            'color',color_data,...
-            'subset',subset_indices & sensitivity_analysis_struct.sigma_perineurium~=Inf);
-        
-        g.facet_grid(round(sensitivity_analysis_struct.anisotropy_ratio_vals,2),...
-            round(sensitivity_analysis_struct.sigma_endoneurium_z,2));
-        g.geom_line();
-        g.geom_point();
-        
-        xtick_vals =  unique(x_data);
-        xtick_labels = arrayfun(@(x) num2str(x,x_tick_label_format),xtick_vals,'UniformOutput',false);
-        g.set_names('row','\sigma_z / \sigma_r','column','\sigma_z (S/m)','x',x_data_label,...
-            'y','V_{pk-pk} (\muV)','color','\sigma_{perineurium} (S/m)');
-        g.axe_property('YScale','log','XScale','log','YMinorTick','off','YGrid','on',...
-            'YMinorGrid','off',...
-            'XMinorTick','off','XLim',...
-            [min(x_data),max(x_data)],'XTick',xtick_vals,'XTickLabel',xtick_labels);
-        
-        if (flag_myelinated)
-            ytick_locations = 4.^[1:7];
-        else
-            ytick_locations = 4.^[2:8];
-        end
-        g.axe_property('YTick',ytick_locations,'YLim',[min(ytick_locations),max(ytick_locations)]);
-        
-        g.set_layout_options('legend',true);
-        g.set_text_options('interpreter','tex','base_size',10);
-        
-        figure('units','normalized','outerposition',[0 0 1 1]);
-        g.draw();
-        
-        g.update('x',x_data,...
-            'y',y_data,...
-            'color',color_data,...
-            'subset',subset_indices & sensitivity_analysis_struct.sigma_perineurium==Inf);
-        g.geom_line();
-        g.set_color_options('map',[0 0 0]);
-        g.set_line_options("styles",{'--'});
-        g.draw();
-    end
-    
-    
-    %% Plot waveforms for a subset of the data to highlight key pieces of the waveform effects story
-    if (flag_myelinated)
-        x_bounds = [0,2];
+
+    y_data = ((sensitivity_analysis_struct.CAP_signals_all./max(abs(sensitivity_analysis_struct.CAP_signals_all)))');
+
+
+    clear g
+    g=gramm('x',x_data,...
+        'y',y_data,...
+        'color',color_data,...
+        'subset',subset_indices);
+
+    g.facet_grid([],round(360-sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001,2));
+    g.geom_line();
+
+    g.set_names('column',['cuff opening (',char(176),')'],'x',x_data_label,'y',{'signal','(normalized)'},...
+        'color',color_data_label);
+    g.axe_property('XLim',x_bounds,'Visible','off');
+    g.set_layout_options('legend',true,'legend_position','auto');
+    g.set_text_options('interpreter','tex','base_size',12);
+    %     g.set_color_options('map','parula')
+    g.set_continuous_color('colormap','parula');
+    figure('position',[680   558   612   420]);
+    g.draw();
+end
+
+
+function [output_table, sensitivity_analysis_table] = load_sensitivity_analysis_results(flag_myelinated)
+
+output_table = [];
+sensitivity_analysis_table = [];
+
+if (flag_myelinated==1)
+    output_table_files = {
+        '../results/mimic_brute_force_myel_sweep_workspace.mat'
+        };
+elseif (flag_myelinated==0)
+    output_table_files = {
+        '../results/mimic_brute_force_unmyel_sweep_workspace.mat'
+        };
+else
+    error('invalid flag_myelinated value')
+end
+
+
+for i = 1:length(output_table_files)
+    % Load the sensitivity analysis data and the sensitivity analysis table (with comma delimiter)
+    workspace_i = load(output_table_files{i});
+    if (isfield(workspace_i,'output_table'))
+        output_table_i = workspace_i.output_table;
+    elseif (isfield(workspace_i,'all_output_tables'))
+        output_table_i = vertcat(workspace_i.all_output_tables{:});
     else
-        x_bounds = [2,37];
+        error('Did not find output_table or all_output_tables in %s',output_table_files{i});
     end
-    for i = 1:4
-        switch i
-            case 1
-                % Waveform vs. fill
-                x_data = sensitivity_analysis_struct.common_time_vector_ms';
-                x_data_label = 'time (ms)';
-                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                    round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
-                color_data = sensitivity_analysis_struct.sigma_fill;
-                color_data_label = '\sigma_{surround} (S/m)';
-            case 2
-                % Waveform vs. perineurial conductivity
-                x_data = sensitivity_analysis_struct.common_time_vector_ms';
-                x_data_label = 'time (ms)';
-                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                    round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                    round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6) & ...
-                    ~isinf(sensitivity_analysis_struct.sigma_perineurium);
-                color_data = sensitivity_analysis_struct.sigma_perineurium;
-                color_data_label = '\sigma_{perineurium} (S/m)';
-            case 3
-                % Waveform vs. longitudinal endoneural conductivity
-                x_data = sensitivity_analysis_struct.common_time_vector_ms';
-                x_data_label = 'time (ms)';
-                subset_indices = round(sensitivity_analysis_struct.anisotropy_ratio_vals,2)==3.43 & ...
-                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6) & ...
-                    round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
-                color_data = sensitivity_analysis_struct.sigma_endoneurium_z;
-                color_data_label = '\sigma_z (S/m)';
-            case 4
-                % Waveform vs. anisotropy
-                x_data = sensitivity_analysis_struct.common_time_vector_ms';
-                x_data_label = 'time (ms)';
-                subset_indices = round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
-                    round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6) & ...
-                    round(sensitivity_analysis_struct.sigma_fill,6)==round(1.76,6);
-                color_data = sensitivity_analysis_struct.anisotropy_ratio_vals;
-                color_data_label = '\sigma_z / \sigma_r';
-            otherwise
-                error('Invalid case in switch statement');
-        end
-        
-        y_data = ((sensitivity_analysis_struct.CAP_signals_all./max(abs(sensitivity_analysis_struct.CAP_signals_all)))');
-        
-        
-        clear g
-        g=gramm('x',x_data,...
-            'y',y_data,...
-            'color',color_data,...
-            'subset',subset_indices);
-        
-        g.facet_grid([],round(360-sensitivity_analysis_struct.Theta_contact_CylUm300t_20230323_001,2));
-        g.geom_line();
-        
-        g.set_names('column',['cuff opening (',char(176),')'],'x',x_data_label,'y',{'signal','(normalized)'},...
-            'color',color_data_label);
-        g.axe_property('XLim',x_bounds,'Visible','off');
-        g.set_layout_options('legend',true,'legend_position','auto');
-        g.set_text_options('interpreter','tex','base_size',12);
-        %     g.set_color_options('map','parula')
-        g.set_continuous_color('colormap','parula');
-        figure('position',[680   558   612   420]);
-        g.draw();
-    end
-    
-    
+
+    % Append the output table and the sensitivity analysis table
+    output_table = [output_table;output_table_i];
+end
