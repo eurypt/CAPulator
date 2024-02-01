@@ -26,16 +26,16 @@ addpath('external_dependencies/gramm');
 % each function handle in the cell array below; a value of 0 will cause
 % that function to not be run
 function_run_status_and_handle = {
-    1, @run_baseline_CNAP_signal % Generate baseline data for Figure 1 & 3
-    1, @run_tuned_CNAP_signal % Generatetune data for Figure 11
-    1, @plot_comparison_model_vs_in_vivo % Plot Figure 1 & Figure 11
-    1, @plot_comparison_brute_force_vs_efficient % Plot Figure 3
+    0, @run_baseline_CNAP_signal % Generate baseline data for Figure 1 & 3
+    0, @run_tuned_CNAP_signal % Generatetune data for Figure 11
+    0, @plot_comparison_model_vs_in_vivo % Plot Figure 1 & Figure 11
+    0, @plot_comparison_brute_force_vs_efficient % Plot Figure 3
     1, @plot_sensitivity_analysis_results % Plot Figures 4 & 5 (as well as some supplementary figures)
-    1, @run_conduction_distance_sensitivity_analysis % Generate data for Figure 6
-    1, @plot_conduction_distance_sensitivity_analysis % Plot Figure 6
-    1, @quantify_random_sampling_effects % Generate data for Figure 7 & plot it
-    1, @run_compare_Havton_to_Soltanpour % Generate data for Figure 8
-    1, @plot_compare_Havton_to_Soltanpour % Plot Figure 8
+    0, @run_conduction_distance_sensitivity_analysis % Generate data for Figure 6
+    0, @plot_conduction_distance_sensitivity_analysis % Plot Figure 6
+    0, @quantify_random_sampling_effects % Generate data for Figure 7 & plot it
+    0, @run_compare_Havton_to_Soltanpour % Generate data for Figure 8
+    0, @plot_compare_Havton_to_Soltanpour % Plot Figure 8
     1, @run_evalulate_CV_vs_fiberD_effect_on_CAP % Generate data for Figure 9
     1, @plot_evalulate_CV_vs_fiberD_effect_on_CAP % Plot Figure 9
     1, @quantify_shrinkage_effects % Generate data for Figure 10 & plot it
@@ -215,9 +215,25 @@ g(1,2).set_color_options('map',[0.85,0.33,0.10]);
 figure('position',[464,240,1101,738]);
 g.draw();
 set(g(1).facet_axes_handles(1),'XLim',[0.16,2],'YLim',200*[-1 1]);
-set(g(1).facet_axes_handles(2),'XLim',[2.5,35],'YLim',3000*[-1 1]);
+set(g(1).facet_axes_handles(2),'XLim',[2.5,40],'YLim',3000*[-1 1]);
 set(g(2).facet_axes_handles(1),'XLim',[0.16,2],'YLim',200*[-1 1]);
-set(g(2).facet_axes_handles(2),'XLim',[2.5,35],'YLim',800*[-1 1]);
+set(g(2).facet_axes_handles(2),'XLim',[2.5,40],'YLim',950*[-1 1]);
+legend(g(1).facet_axes_handles(1),...
+    {'in vivo 11 mm','in vivo 15 mm','model 11 mm','model 15 mm'},...
+    'NumColumns',2)
+legend(g(1).facet_axes_handles(2),...
+    {'model 6 mm','model 11 mm','model 15 mm','in vivo 6 mm','in vivo 11 mm','in vivo 15 mm'},...
+    'NumColumns',2)
+legend(g(2).facet_axes_handles(1),...
+    {'in vivo chan 1','in vivo chan 2','in vivo chan 3','model chan 1','model chan 2','model chan 3'},...
+    'NumColumns',2)
+legend(g(2).facet_axes_handles(2),...
+    {'in vivo chan 1','in vivo chan 2','in vivo chan 3','model chan 1','model chan 2','model chan 3'},...
+    'NumColumns',2)
+% Save to svg file
+g.export('file_name','../results/matlab_in_vivo_vs_model_tuned.svg','file_type','svg');
+
+
 
 % Define each of the xlim bounds above as separate variables
 myel_bounds = [0.16,2];
@@ -302,6 +318,8 @@ set(g.facet_axes_handles(1),'XLim',[5 16]);
 set(g.facet_axes_handles(2),'XLim',[5 16]);
 set(g.facet_axes_handles(3),'XLim',[5 16]);
 set(g.facet_axes_handles(4),'XLim',[5 16]);
+% Save to svg file
+g.export('file_name','../results/matlab_in_vivo_vs_model_tuned_Vpk2pk.svg','file_type','svg');
 
 function plot_comparison_brute_force_vs_efficient()
 % Load the in vivo data

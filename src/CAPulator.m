@@ -49,18 +49,18 @@ classdef CAPulator
         %}
         function [CNAP_signal_uV, final_time_vector_ms, SFAPs_uV] = ...
                 calculate_CAP_via_temporal_templates(params)
-            
+
             % Extract all the required parameter field values
             template_data_source_filename = params.template_data_source_filename;
-            
+
             % fiber_type=params.fiber_type;
             extracellular_recording_model_filename = params.extracellular_recording_model_filename;
-            
+
             LENGTH_AXONS_um = params.z_max_um-params.z_min_um;
             DESIRED_CENTER_um = mean([params.z_max_um,params.z_min_um]);
-            
+
             fiber_diameters_in_nerve_um = params.fiber_diameters_in_nerve_um;
-            
+
             % Load xy_coords_um from the file if it was specified; otherwise, use the
             % specified xy_coords_um
             if (isfield(params,'xy_coords_filename'))
@@ -70,11 +70,11 @@ classdef CAPulator
                 assert(isfield(params,'xy_coords_um'),'xy_coords_um or xy_coords_filename must be specified');
                 xy_coords_um=params.xy_coords_um;
             end
-            
+
             stim_location_change_mm = params.stim_location_change_mm;
-            
+
             % Done extracting all the required parameter field values
-            
+
             % Extract all the optional parameter field values
             if (isfield(params,'flag_dipole'))
                 flag_dipole=params.flag_dipole;
@@ -82,14 +82,14 @@ classdef CAPulator
                 % default to dipole approach
                 flag_dipole = 1;
             end
-            
+
             if (isfield(params,'template_diameters_to_use_um'))
                 template_diameters_to_use_um=params.template_diameters_to_use_um;
             else
                 % default to using all template diameters
                 template_diameters_to_use_um = [];
             end
-            
+
             if (isfield(params,'interp_type'))
                 interp_type=params.interp_type;
             else
@@ -101,28 +101,38 @@ classdef CAPulator
             else
                 flag_jitter_z = 0;
             end
+            if (isfield(params,'dset_tag'))
+                dset_tag = params.dset_tag;
+            else
+                dset_tag = 'dset1';
+            end
+            if (isfield(params,'outersolnum'))
+                outersolnum = params.outersolnum;
+            else
+                outersolnum = 1;
+            end
             if (isfield(params,'diameter_precision'))
                 diameter_precision = params.diameter_precision;
             else
                 diameter_precision = 3;
             end
-            
+
             % Done extracting all the optional parameter field values
-            
-            
+
+
             % ensure fiber_diameters_in_nerve_um is a row vector
             if (size(fiber_diameters_in_nerve_um,1)>1)
                 fiber_diameters_in_nerve_um = transpose(fiber_diameters_in_nerve_um);
             end
-            
+
             % Round fiber diameters to specified precision
             fiber_diameters_in_nerve_um = round(fiber_diameters_in_nerve_um,diameter_precision);
-            
+
             % transpose xy_coords_um so that it is a 2-by-M matrix in which M is the
             % number of fibers *or* in which M=1 (i.e., one xy coordinate for all
             % axons)
             xy_coords_um = transpose(xy_coords_um);
-            
+
             %{
                 If the following fields are not already defined in the params
                 structure, then get them by running the get_template_data method
@@ -156,9 +166,9 @@ classdef CAPulator
                 reference_compartment_locations_um_all_templates = params.reference_compartment_locations_um_all_templates;
                 fiber_type = params.fiber_type;
             end
-            
+
             %
-            
+
             % Downsample the templates to just above 2x the nyquist frequency as determined
             % by precondition_templates.m. Based on that, the nyquist frequency is 47.1 kHz
             % for myelinated fibers and 7.8kHz for unmyelinatd fibers. So, cut out all
@@ -174,10 +184,10 @@ classdef CAPulator
                 new_sampling_rate_ms = (1e3*(1/cutoff_freq_Hz)/2); % [ms]
                 common_time_vector_ms = common_time_vector_ms(1) + ((1:size(template_data_matrix,1))-1)*new_sampling_rate_ms;
             end
-            
+
             % Round all_fiber_diameters to the specified precision
             all_fiber_diameters = round(all_fiber_diameters,diameter_precision);
-            
+
             % manually declare the variables as below because parfor may not be able to
             % access variables loaded directly from a file
             % Use only the specified subset of fiber diameters as templates
@@ -187,18 +197,18 @@ classdef CAPulator
             templates_to_keep = find(ismember(all_fiber_diameters,...
                 round(template_diameters_to_use_um,diameter_precision)));
             template_data_matrix = template_data_matrix(:,templates_to_keep,:);
-            
+
             all_fiber_diameters = all_fiber_diameters(templates_to_keep);
             all_conduction_velocity_m_per_s = all_conduction_velocity_m_per_s(templates_to_keep);
             reference_peak_times_all_templates = reference_peak_times_all_templates(templates_to_keep);
             reference_compartment_locations_um_all_templates = reference_compartment_locations_um_all_templates(templates_to_keep);
             % common_time_vector_ms = common_time_vector_ms;
-            
+
             % assert(length(expected_initiation_delay_ms)==1 || length(expected_initiation_delay_ms)==size(template_data_matrix,2),...
             %     'expected_initiation_delay_ms should contain either one value per template*or* a single scalar value');
             assert(~isempty(all_fiber_diameters),'all_fiber_diameters should not be empty; verify that template_data_source_filename is set appropriately');
-            
-            
+
+
             % Remove any fiber diameters that exceed the bounds of the template
             % transmembrane currents
             diameters_to_remove = find(fiber_diameters_in_nerve_um<min(all_fiber_diameters) | ...
@@ -207,20 +217,20 @@ classdef CAPulator
                 warning('removing %d fibers because they are outside the bounds of the fiber diameters of available Im',...
                     length(diameters_to_remove));
                 fiber_diameters_in_nerve_um(diameters_to_remove) = [];
-                
+
                 % Remove xy coordinates of the removed fiber if there were multiple xy
                 % coordinates provided
                 if (size(xy_coords_um,2)>1)
                     xy_coords_um(diameters_to_remove) = [];
                 end
             end
-            
+
             query_fiber_diameter_interpolated_all = interp1(all_fiber_diameters,all_fiber_diameters,...
                 fiber_diameters_in_nerve_um,interp_type);
             [unique_fiber_diameters,n_of_each_unique_fiber_diameter,IA,IC] = ...
                 CAPulator.count_unique_values(query_fiber_diameter_interpolated_all,diameter_precision);
-            
-            
+
+
             % Interpolate CV
             % If the fiber type is myelinated, interpolate CV linearly across fiber
             % diameters; if the fiber type is unmyelinated, interpolate CV *squared* linearly
@@ -238,14 +248,14 @@ classdef CAPulator
                 error('fiber_type must be either myelinated or unmyelinated');
             end
             CV_interpolated_at_unique_diameters = CV_interpolated_all_fibers(IA);
-            
+
             % ===== Start this major output: XYZ coordinates of all fibers =====
             % Get xyz coordinates of all compartments; since the temporal template
             % method depends on repeating a template for each node, and since there can
             % be multiple compartments per node (namely in myelinated fibers), truncate
             % the list of coordinates so that its length is an integer multiple of
             % n_compartments_per_node
-            
+
             % If coords_all_compartments_all_axons, n_compartments_per_node, and
             % distance_between_nodes_all_fibers_um are already fields in the params, then use
             % those values; otherwise, calculate them
@@ -262,16 +272,33 @@ classdef CAPulator
                     query_fiber_diameter_interpolated_all,xy_coords_um,LENGTH_AXONS_um,DESIRED_CENTER_um,[],flag_jitter_z);
             end
             % ===== End this Major Output =====
-            
+
             distance_um_between_nodes_unique_fiber_diameters = distance_between_nodes_all_fibers_um(IA);
-            
+
             time_between_nodes_ms = 1e-3*distance_between_nodes_all_fibers_um'./CV_interpolated_all_fibers;
-            
-            load(extracellular_recording_model_filename,'V','z_coords');
-            recording_sensivitity_all_fibers = CAPulator.get_electric_potentials(z_coords,V,coords_all_compartments_all_axons);
-            
-            n_compartments_per_fiber = cellfun(@(x) size(x,2),coords_all_compartments_all_axons)';
-            
+
+            % specify the volume conductor information to extract electric
+            % potentials
+            if (strcmp(extracellular_recording_model_filename(end-3:end),'.mat'))
+                % If a .mat file was specified, it is assumed that all
+                % fibers are at a single xy coordinate (e.g., all fibers
+                % placed at the origin); then the potentials will be
+                % interpolated from the z_coord and V in the .mat file
+                extracellular_recording_model_data = load(extracellular_recording_model_filename,'z_coords','V');
+                extracellular_recording_model_structure.z_coords = extracellular_recording_model_data.z_coords;
+                extracellular_recording_model_structure.V = extracellular_recording_model_data.V;
+            elseif (strcmp(extracellular_recording_model_filename(end-3:end),'.mph'))
+                extracellular_recording_model_structure.filename = extracellular_recording_model_filename;
+                extracellular_recording_model_structure.outersolnum = outersolnum;
+                extracellular_recording_model_structure.dset_tag = dset_tag;
+            else
+                error('extracellular_recording_model_filename should be either a .mat file (containing z_coords & V in a straight line) *or* a COMSOL (.mph) file');
+            end
+            % get the electric potentials using the volume conductor
+            % information specified above
+            [recording_sensivitity_all_fibers,n_compartments_per_fiber] = CAPulator.get_electric_potentials(...
+                extracellular_recording_model_structure,coords_all_compartments_all_axons);
+
             % Reshape & permute the forward model to store the other repeating compartments
             % (e.g., MYSA, FLUT, STIN) in the third dimension.
             % Also, if using the dipole approach, iterate through every element in
@@ -283,8 +310,8 @@ classdef CAPulator
                 recording_sensivitity_all_fibers{i} = reshape(recording_sensivitity_all_fibers{i},n_compartments_per_node,[]);
                 recording_sensivitity_all_fibers{i} = permute(recording_sensivitity_all_fibers{i},[2,1]);
             end
-            
-            
+
+
             % Pre-identify all the closest template fiber diameters (upper and lower)
             % for each query fiber diameter and weights; this approach elegantly
             % handles when fiber diameters match a template since one of the weights is
@@ -297,34 +324,34 @@ classdef CAPulator
                 fiber_floating_point_indices,1)];
             left_integer_indices_and_weights_unique_diams = left_integer_indices_and_weights(IA,:);
             right_integer_indices_and_weights_unique_diams = right_integer_indices_and_weights(IA,:);
-            
+
             %%% Iterate through each fiber diameter to get SFAP signals for each one
             dt_ms_original = mode(diff(common_time_vector_ms));
-            
-            
-            
+
+
+
             % Calculate delays in terms of
             delays_ms_forward_model = time_between_nodes_ms.*(n_compartments_per_fiber/n_compartments_per_node);
-            
+
             % length to expand templates to so that they can handle shifts due to
             % forward model
             new_length = ceil(size(template_data_matrix,1)+max(delays_ms_forward_model)/dt_ms_original);
-            
+
             sampling_rate_Hz = 1e3/dt_ms_original; % [Hz]
             [template_data_matrix_fft,template_freq_Hz] = CAPulator.fft_wrapper(template_data_matrix,...
                 new_length,[],sampling_rate_Hz);
-            
+
             SFAP_all_fibers_fft = 1i*ones(size(template_data_matrix_fft,1),length(recording_sensivitity_all_fibers));
-            
+
             all_SFAP_delays_ms = zeros(length(recording_sensivitity_all_fibers),1);
             for unique_fiber_diameter_ind = length(unique_fiber_diameters):-1:1
-                
+
                 % Define the left weights and right weights and indinces
                 left_ind = left_integer_indices_and_weights_unique_diams(unique_fiber_diameter_ind,1);
                 left_weight = left_integer_indices_and_weights_unique_diams(unique_fiber_diameter_ind,2);
                 right_ind = right_integer_indices_and_weights_unique_diams(unique_fiber_diameter_ind,1);
                 right_weight = right_integer_indices_and_weights_unique_diams(unique_fiber_diameter_ind,2);
-                
+
                 % Combine forward models for fibers of the same fiber diameter This assumes
                 % that fibers of the same fiber diameter have the same number of
                 % compartments and that activation happens at the same location in those
@@ -341,7 +368,7 @@ classdef CAPulator
                     ['currently the way that the index_of_node_where_first_AP_occurred is ',...
                     'set assumes all fibers of a given unique fiber diameter have the same ',...
                     'number of compartments and are straight fibers']);
-                
+
                 % prep a variable for the forward model; also count number of
                 % nodes; confirm that the length of the forward model is an integer
                 % multiple of n_compartments_per_node since the temporal template gets
@@ -351,12 +378,12 @@ classdef CAPulator
                 % Keep individual fibers separate such that the 2D matrix has columns
                 % of one fiber followed by columns of the next fiber, etc.
                 forward_model_i = cell2mat(transpose(recording_sensivitity_all_fibers(indices_to_combine)));
-                
+
                 time_between_nodes_ms_i = unique(time_between_nodes_ms(indices_to_combine));
                 assert(length(time_between_nodes_ms_i)==1,'The time between nodes should be the same for all fibers of the same diameter...');
                 desired_dt_resampled = time_between_nodes_ms_i / ceil(time_between_nodes_ms_i/dt_ms_original);
                 dt_ms = desired_dt_resampled;
-                
+
                 % What is the peak time at the first modeled node? If it is positive,
                 % (a) make a delay vector from 0 to the # of nodes, (b) multiply it by the
                 % conduction delay samples between nodes, and then (c) shift that whole
@@ -376,7 +403,7 @@ classdef CAPulator
                 if (strcmp(fiber_type,'myelinated'))
                     interp_peak_time_ms = 1/interp1(all_fiber_diameters,1./reference_peak_times_all_templates,...
                         unique_fiber_diameters(unique_fiber_diameter_ind));
-                    
+
                 elseif (strcmp(fiber_type,'unmyelinated'))
                     % Assuming the starting location and the ref location are the same for
                     % all axons (i.e., delta_x is constant), and knowing that CV *squared*
@@ -386,9 +413,9 @@ classdef CAPulator
                     % reciprocal of the known points.
                     interp_peak_time_ms = sqrt(1/interp1(all_fiber_diameters,(1./reference_peak_times_all_templates).^2,...
                         unique_fiber_diameters(unique_fiber_diameter_ind)));
-                    
+
                 end
-                
+
                 % Adjust the interp peak time by the time it takes to traverse the
                 % change in stimulation distance; a positive shift in location moves
                 % the stimulation closer to the recording, thus reducing the interp
@@ -400,15 +427,15 @@ classdef CAPulator
                 % the ref node
                 interp_ref_node_ind = 1 + round((approximate_ref_node_loc_um - nodes_z_coords_um(1))/...
                     distance_um_between_nodes_unique_fiber_diameters(unique_fiber_diameter_ind));
-                
+
                 % substract 1 since if interp_ref_node_ind is equal to ref node ind
                 % then no need to adjust interp_peak_ms
                 peak_time_at_first_modeled_node_ms = interp_peak_time_ms - time_between_nodes_ms_i*(interp_ref_node_ind-1);
-                
+
                 % start the delay vector (in terms of nodes) from 0 to (# nodes modeled - 1)
                 %     number_of_nodes_to_model = length(forward_model_i)/n_compartments_per_node;
                 number_of_nodes_to_model = size(forward_model_i,1);
-                
+
                 % set a bit arbitrarily based on the assumption that the signal was
                 % resampled to have a time between nodes that is an integer multiple of
                 % sampling rate
@@ -416,12 +443,12 @@ classdef CAPulator
                 ROUND_PRECISION_FOR_CONDUCTION_SAMPLES_PER_NODE = 3;
                 samples_between_nodes = round(time_between_nodes_ms_i/desired_dt_resampled,...
                     ROUND_PRECISION_FOR_CONDUCTION_SAMPLES_PER_NODE);
-                
+
                 % Store all the delays for each SFAP (in ms)
                 % all_SFAP; adjust for the template initial time (i.e.,
                 % common_time_vector_ms(1))
                 all_SFAP_delays_ms(indices_to_combine) = peak_time_at_first_modeled_node_ms;
-                
+
                 % if the conduction delay between compartments/nodes is an
                 % approximately an integer multiple of dt, then use a sparse shift
                 % matrix of ones and zeros since it is more efficient that the
@@ -432,8 +459,8 @@ classdef CAPulator
                 j_indices = 1:number_of_nodes_to_model;
                 s = ones(size(i_indices));
                 all_shifts = sparse(i_indices,j_indices,s);
-                
-                
+
+
                 % reshape the forward model in preparation for weighting; as with the
                 % number of nodes calculations above, exclude the very last compartment;
                 % reshape so that the weighting can occur for myelinated fibers that have
@@ -442,12 +469,12 @@ classdef CAPulator
                 % weight the shifts, then use the result as a filter for the template; do
                 % this separate for each compartment of the repeating unit
                 weighted_all_shifts = all_shifts*forward_model_i;
-                
+
                 % reshape & permute forward model directly
                 % temp = reshape(forward_model_i,size(forward_model_i,1),n_compartments_per_node,[]);
                 temp = reshape(weighted_all_shifts,size(weighted_all_shifts,1),n_compartments_per_node,[]);
                 temp2 = permute(temp,[1 3 2]);
-                
+
                 % set the nfft so that the frequency resolution equals that of the
                 % fft of temporal templates which has a frequency resolution equal
                 % to (1/dt_ms_original)/length(final_expected_time_vector)
@@ -455,10 +482,10 @@ classdef CAPulator
                 % be used for the fft
                 dt_ms = desired_dt_resampled; %time_between_nodes_ms_i; %ceil(time_between_nodes_ms_i*cutoff_freq_Hz);
                 nfft = round((1/dt_ms)*size(template_data_matrix_fft,1)/(1/dt_ms_original));
-                
+
                 % take FFT of forward model (without the upsamples)
                 [filter_fft,filter_freq_Hz] = CAPulator.fft_wrapper(temp2,nfft,[],1e3/dt_ms);
-                
+
                 % if the filter length is shorter than the templates, calculate padding
                 % needed to add and add it in
                 padding_length = size(template_data_matrix_fft,1)-size(filter_fft,1);
@@ -484,20 +511,20 @@ classdef CAPulator
                 else
                     filter_fft_padded = filter_fft;
                 end
-                
+
                 temporal_template_i_fft = left_weight*template_data_matrix_fft(:,left_ind,:) + ...
                     right_weight*template_data_matrix_fft(:,right_ind,:);
-                
+
                 SFAP_all_fibers_fft(:,indices_to_combine) = ...
                     sum(filter_fft_padded.*temporal_template_i_fft,3);
             end
-            
-            
+
+
             SFAPs_uV = 1e6*ifft(SFAP_all_fibers_fft); % [uV]
-            
+
             % Add the template initial time offset to the delay correction
             all_SFAP_delays_ms = all_SFAP_delays_ms + common_time_vector_ms(1);
-            
+
             % Adjust the SFAP delays by a specified amount before converting back into
             % time domain
             % Specify shifts
@@ -533,14 +560,14 @@ classdef CAPulator
             end
             % Truncate the min_delay_samples zeros to get the intended effect of negative shifts
             SFAPs_uV = SFAPs_uV((-min_delay_samples+1):end,:);
-            
+
             % Sum SFAPs to get CNAP
             CNAP_signal_uV = sum(SFAPs_uV,2);
             % save as a column vector to match CNAP signal
             final_time_vector_ms = [((1:length(CNAP_signal_uV))-1)*dt_ms_original]'; % [ms]
-            
+
         end
-        
+
         %{
             This function calculates the electric potentials at the specified
             coordinates using the provided z coordinates and electric
@@ -550,52 +577,116 @@ classdef CAPulator
             the code, although more general versions that depend on COMSOL allow
             arbitrary coordinates.
         %}
-        function recording_sensivitity_all_fibers = get_electric_potentials(...
-                z_coords,V,coords_all_compartments_all_axons)
-            
+        function [recording_sensivitity_all_fibers,n_compartments_per_fiber] = get_electric_potentials(...
+                extracellular_recording_model_structure,coords_all_compartments_all_axons)
+
             coords_mat = cell2mat(coords_all_compartments_all_axons');
-            
+
+
+            % Create a 1-by-M vector to store forward model values
+            forward_model_mat = zeros(1, size(coords_mat, 2));
+
+            % Check whether the 3-by-K matrix consists of
+            % coordinates along the same xy
+            ROUND_PRECISION = 6;
+            unique_xy_coords = unique(round(coords_mat([1 2],:),ROUND_PRECISION)','rows');
+            if (size(unique_xy_coords,1)==1)
+                one_xy = true;
+                min_z = floor(min(coords_mat(3,:)));
+                max_z = ceil(max(coords_mat(3,:)));
+            else
+                one_xy = false;
+            end
+
             % otherwise, assert that the model structure contains a field named 'z_coords' a
             % field named 'V' so that it contains potentials along a straight line at the XY
             % origin and that all the provided coordinates satisfy this
-            assert(all(coords_mat(1,:)==0)&&all(coords_mat(2,:)==0),'With this method, all xy coordinates must be at 0,0');
-            
-            
-            % Create a 1-by-M vector to store forward model values
-            forward_model_mat = zeros(1, size(coords_mat, 2));
-            
-            % Iterate through the 3-by-M matrix input in batches of 3-by-K matrices, where K
-            % is batch_size
+            if (isfield(extracellular_recording_model_structure,'filename'))
+                assert(strcmp(extracellular_recording_model_structure.filename(end-3:end),'.mph'),...
+                    'The filename field of the extracellular recording model structure must be a COMSOL .mph file');
+
+                import com.comsol.model.util.*
+                import com.comsol.model.*
+                % load the extracellular recording model
+                recording_model = mphload(extracellular_recording_model_structure.filename);
+                % get scaling factor relative to [m]; scale up input coords as needed
+                conversion_factor = 1e-6/recording_model.geom('geom1').geomScaleFactor(); % conversion from um to COMSOL units
+
+
+                % if so, set the extracellular_recording_model_structure.z_coords,...
+                %                         extracellular_recording_model_structure.V
+                %                         variables now; if not, then proceed to do the
+                if one_xy
+                    % Get the initial interpolant data on the first iteration
+                    % Pass a 3-by-K matrix into the function process_matrix and store the
+                    % output into the 1-by-K vector output
+                    target_step_size = 1; % [um]
+                    extracellular_recording_model_structure.z_coords = linspace(min_z,max_z,round((max_z-min_z)/target_step_size));
+                    xyz_coords_straight_centered = [
+                        unique_xy_coords(1)*ones(size(extracellular_recording_model_structure.z_coords))
+                        unique_xy_coords(2)*ones(size(extracellular_recording_model_structure.z_coords))
+                        extracellular_recording_model_structure.z_coords
+                        ];
+                    extracellular_recording_model_structure.V = mphinterp(recording_model,'V',...
+                        'coord',conversion_factor*xyz_coords_straight_centered,...
+                        'dataset',extracellular_recording_model_structure.dset_tag,...
+                        'outersolnum',extracellular_recording_model_structure.outersolnum,'recover','pprint','matherr','on');
+                end
+            else
+                assert(isfield(extracellular_recording_model_structure,'z_coords'),...
+                    'The extracellular recording model structure must contain a field named ''z_coords''');
+                assert(isfield(extracellular_recording_model_structure,'V'),...
+                    'The extracellular recording model structure must contain a field named ''V''');
+                assert(one_xy,'With this method, all xy coordinates must be the same such that all fibers are at the same xy location');
+            end
+
+            % Iterate through the 3-by-M matrix input in batches of 3-by-K
+            % matrices, where K is batch_size; extraction occurs in batches
+            % to avoid Java Out of Memory errors
             batch_size = 2e6;
             for i = 1:batch_size:size(coords_mat, 2)
                 % If the remaining number of columns is less than K, then set K to the
                 % remaining number of columns
                 batch_size = min(batch_size, size(coords_mat, 2) - i + 1);
-                
+
                 coords_mat_batch_i = coords_mat(:, i:i+batch_size-1);
-                
+
                 % Otherwise, assert that the xyz values all lie on a straight line at the XY
                 % origin, and then use interp1 to interpolate all the potentials
-                
-                % Pass a 3-by-K matrix into the function process_matrix and store the
-                % output into the 1-by-K vector output
-                forward_model_mat_batch_i = interp1(z_coords,V,coords_mat_batch_i(3,:),'spline',0);
+                if (isfield(extracellular_recording_model_structure,'z_coords'))
+                    % Pass a 3-by-K matrix into the function process_matrix and store the
+                    % output into the 1-by-K vector output
+                    forward_model_mat_batch_i = interp1(...
+                        extracellular_recording_model_structure.z_coords,...
+                        extracellular_recording_model_structure.V,...
+                        coords_mat_batch_i(3,:),'spline');
+                else
+
+                    % Pass a 3-by-K matrix into the function process_matrix and store the
+                    % output into the 1-by-K vector output
+                    forward_model_mat_batch_i = mphinterp(recording_model,'V',...
+                        'coord',conversion_factor*coords_mat_batch_i,...
+                        'dataset',extracellular_recording_model_structure.dset_tag,...
+                        'outersolnum',extracellular_recording_model_structure.outersolnum,...
+                        'recover','pprint','matherr','on');
+                end
                 forward_model_mat(i:i+batch_size-1) = forward_model_mat_batch_i;
             end
-            
+
+
             % replace NaN values with zeros so that subseqeuent resampling can occur without error
             forward_model_mat(isnan(forward_model_mat)) = 0;
-            
+
             % Reconvert the COMSOL output into a cell array of potentials, which is
             % more readily input to the filter calculation
             n_compartments_per_fiber = cellfun(@(x) size(x,2),coords_all_compartments_all_axons)';
             recording_sensivitity_all_fibers = mat2cell(...
                 transpose(forward_model_mat),... % make each forward model a column vector
                 n_compartments_per_fiber,1);
-            
-            
+
+
         end
-        
+
         % Returns a cell array of length M containing 3-by-L_i matrices in which
         % the first, second, and third row correspond to the x, y, and z
         % coordinates (respectively) of each compartment of a given fiber among the
@@ -610,7 +701,7 @@ classdef CAPulator
         function [coords_all_axons,n_compartments_per_repeatable_unit,...
                 distance_between_compartments_or_nodes_all_fibers] = get_straight_fiber_xyz_coords(...
                 fiber_type,geometry_determination_method, fiber_diameters_um,xy_coords,LENGTH_AXONS,DESIRED_CENTER,n_stin_per_segment,flag_jitter_z)
-            
+
             assert(strcmp(fiber_type,'myelinated')==1 || strcmp(fiber_type,'unmyelinated')==1, 'Invalid fiber_type value')
             % if xy_coords has only one row, assume the user specified a row vector,
             % and transpose it to make the expected column vector
@@ -621,15 +712,15 @@ classdef CAPulator
             if (size(xy_coords,2)==1)
                 xy_coords = repmat(xy_coords,1,length(fiber_diameters_um));
             end
-            
+
             if (~exist('n_stin_per_segment','var') || isempty(n_stin_per_segment))
                 n_stin_per_segment = 6; % default to six STIN per internode
             end
-            
+
             if (~exist('flag_jitter_z','var') || isempty(flag_jitter_z))
                 flag_jitter_z = 0;
             end
-            
+
             if (strcmp(fiber_type,'myelinated'))
                 n_compartments_per_repeatable_unit = n_stin_per_segment+5; % Code expects a total of one node, two MYSA, two FLUT, and however many STIN (so # STIN + 5 comparments per repeatable unit; this is asserted below
             else
@@ -637,16 +728,16 @@ classdef CAPulator
             end
             coords_all_axons = cell(length(fiber_diameters_um),1);
             distance_between_compartments_or_nodes_all_fibers = zeros(size(coords_all_axons));
-            
+
             for fiber_idx = 1:length(fiber_diameters_um)
-                
+
                 if (strcmp(fiber_type,'myelinated'))
                     obj.fiber_dependency_method = geometry_determination_method;
                     obj.fiber_diameter = fiber_diameters_um(fiber_idx);
-                    
+
                     obj = CAPulator.get_fiber_geometric_props(obj);
                     stin_length = (obj.internode_length-obj.node_length-2*obj.mysa_length-2*obj.paranode_length_2)/n_stin_per_segment;
-                    
+
                     axon_repeatable_unit_lengths = [...
                         obj.node_length, ...
                         obj.mysa_length, ...
@@ -694,18 +785,18 @@ classdef CAPulator
                     % assert(ceil(median(1:length(z_coords_one_axon)))==middle_coord_ind)
                     z_coords_one_axon = z_coords_one_axon - CENTER_NODE_Z_COORD + DESIRED_CENTER;
                 end
-                
-                
+
+
                 %%% Calculate the distance between two adjancent compartments (unmyelinated) or
                 %%% nodes (myelinated)
                 distance_between_compartments_or_nodes_all_fibers(fiber_idx) = INTERNODAL_DISTANCE;
-                
+
                 % if specified, add jitter to z coords by up to half internodal
                 % distance in either direction
                 if (flag_jitter_z)
                     z_coords_one_axon = z_coords_one_axon + distance_between_compartments_or_nodes_all_fibers(fiber_idx)*(rand(1)-0.5);
                 end
-                
+
                 % construct x & y coordinates for axon, and shift axon to center it at (0,0,0)
                 coords_one_axon = zeros(3,length(z_coords_one_axon));
                 coords_one_axon(1,:) = xy_coords(1,fiber_idx); %*ones(size(z_coords_one_axon));
@@ -713,15 +804,15 @@ classdef CAPulator
                 coords_one_axon(3,:) = z_coords_one_axon;
                 coords_all_axons{fiber_idx} = coords_one_axon;
             end
-            
+
             for fiber_ind = 1:length(coords_all_axons)
                 fiber_i_coords = coords_all_axons{fiber_ind};
                 n_compartments_to_keep = length(fiber_i_coords) - mod(length(fiber_i_coords),n_compartments_per_repeatable_unit);
                 coords_all_axons{fiber_ind} = fiber_i_coords(:,1:n_compartments_to_keep);
             end
-            
+
         end
-        
+
         %{
             This function extracts the action potential templates from the
             specified file, simplifies the data, and saves it to a new file.
@@ -768,37 +859,37 @@ classdef CAPulator
             else
                 error('Invalid size of output_data_structure(i).(templates_name)...');
             end
-            
+
             n_compartments_per_node = size(output_data_structure(1).temporal_templates,compartment_dim);
             assert(n_templates~=n_time_points,'n_time_points and n_templates should never be equal; this is likely a bug');
             template_data_matrix = zeros(n_time_points,n_templates,n_compartments_per_node);
-            
+
             for i = 1:n_templates
                 % Permute so that the time dimension (the longest dimension) is
                 % first
                 % Make the second dimension template number
                 % Make the third dimension be the MYSA, FLUT, STIN, etc. for myel (does
                 % nothing for unmyel)
-                
-                
+
+
                 template_data_matrix(:,i,:) = permute(output_data_structure(i).(templates_name),[time_dim 3 compartment_dim]);
             end
-            
-            
+
+
             common_time_vector_ms = output_data_structure(1).common_time_vector_ms;
-            
+
             all_fiber_diameters = vertcat(output_data_structure.fiber_diameter);
             all_conduction_velocity_m_per_s = vertcat(output_data_structure.conduction_velocity_m_per_s);
-            
-            
+
+
             % Restore stim pulse offset to the template peak timing
             if (strcmp(fiber_type,'myelinated'))
                 reference_peak_times_all_templates = reference_peak_times_all_templates + 0.1; % [ms]
             elseif (strcmp(fiber_type,'unmyelinated'))
                 reference_peak_times_all_templates = reference_peak_times_all_templates + 0.4; % [ms]
             end
-            
-            
+
+
             % Get reference peak times and reference compartments; this will be used to
             % adjust the timing of the SFAP later on to match the source templates
             reference_compartment_locations_um_all_templates = [];
@@ -806,9 +897,9 @@ classdef CAPulator
                 reference_compartment_locations_um_all_templates = [reference_compartment_locations_um_all_templates;...
                     1e3*output_data_structure(i).z_locations_mm_all(output_data_structure(i).target_compartment_index)];
             end
-            
+
         end
-        
+
         %{
             Wrapper to MATLAB's built-in fft function. It calculates a frequency vector
             based on the provided fs. MATLAB's built-in fft function is agnostic to this
@@ -816,18 +907,18 @@ classdef CAPulator
             interpreting fft results.
         %}
         function [Y,freq] = fft_wrapper(X, N, DIM, fs)
-            
+
             if ~exist('DIM','var') || isempty(DIM)
                 DIM = 1;
             end
-            
+
             if ~exist('N','var') || isempty(N)
                 N = size(X,DIM);
             end
-            
+
             %%% Run FFT using MATLAB's built-in fft function and built-in inputs
             Y = fft(X,N,DIM);
-            
+
             %%% Calculate freq using fs
             df = fs/N;
             if (mod(N,2)==0)
@@ -835,7 +926,7 @@ classdef CAPulator
                 % second half starts with a real (i.e., not complex-valued)  high frequency
                 % component; every other value has a complex conjugate pair
                 freq = [((1:(N/2))-1)*df, ((1:(N/2)))*df - (N/2 + 1)*df];
-                
+
             else
                 % for odd FFT, the first half starts with the 0 Hz component, and the last
                 % value of the first half is the complex conjugate of the first value of
@@ -843,7 +934,7 @@ classdef CAPulator
                 freq = [((1:ceil(N/2))-1)*df, ((1:floor(N/2)))*df - ceil(N/2)*df];
             end
         end
-        
+
         %{
 
         Description: Obtain MRG fiber geometric parameters.
@@ -857,7 +948,7 @@ classdef CAPulator
             % Method 0: MRG present diameters
             % Method 1: Run Nikki's quadratic fits to MRG data
             % Method 2: Run Nikki & Edward's fits from SPARC project
-            
+
             switch obj.fiber_dependency_method
                 case 0
                     output_obj = CAPulator.helper__changePropsMethod0(obj);
@@ -868,28 +959,28 @@ classdef CAPulator
                 otherwise
                     error('Option #%d not recognized')
             end
-            
-            
+
+
         end
-        
+
         function output_obj = helper__changePropsMethod0(obj)
             %
             %
             %   See MRG paper for details
             fiber_diameter_all       = [1 2 5.7      7.3     8.7     10      11.5    12.8    14      15      16];
-            
+
             FIBER_INDEX = find(fiber_diameter_all == obj.fiber_diameter,1);
             if isempty(FIBER_INDEX)
                 error('Unable to find specifications for given fiber size')
             end
-            
+
             %ROUGH DIAMETER OUTLINE
             %--------------------------------------------------------------
             %FIBER DIAMETER > AXON DIAMETER > NODE DIAMETER
             %AXON DIAMETER = FLUT DIAMETER (PARANODE 2)
             %NODE DIAMETER = MYSA DIAMETER (PARANODE 1)
-            
-            
+
+
             internode_length_all     = [100 200 500      750     1000    1150    1250    1350    1400    1450    1500];
             number_lemella_all       = [15 30 80       100     110     120     130     135     140     145     150];
             %node_length             CONSTANT
@@ -902,7 +993,7 @@ classdef CAPulator
             %space_p2                CONSTANT
             %STIN LENGTH             DEPENDENT - delta_x_all,paranode_length_1,paranode_length_2_all,n_STIN
             axon_diameter_all        = [0.8 1.6 3.4      4.6     5.8     6.9     8.1     9.2     10.4    11.5    12.7];
-            
+
             obj.internode_length     = internode_length_all(FIBER_INDEX);
             obj.number_lemella       = number_lemella_all(FIBER_INDEX);
             obj.node_diameter        = node_diameter_all(FIBER_INDEX);
@@ -910,16 +1001,16 @@ classdef CAPulator
             obj.paranode_length_2    = paranode_length_2_all(FIBER_INDEX);
             obj.paranode_diameter_2  = paranode_diameter_2_all(FIBER_INDEX);
             obj.axon_diameter        = axon_diameter_all(FIBER_INDEX);
-            
+
             output_obj = obj;
-            
+
         end
-        
-        
+
+
         function output_obj = helper__changePropsMethod1(obj)
-            
+
             fd = obj.fiber_diameter;
-            
+
             % Nikki fit
             % Second order polynomial using Curve Fitting Tool
             obj.number_lemella          = -0.4749*fd^2 + 16.85*fd  + -0.7648;
@@ -938,18 +1029,18 @@ classdef CAPulator
                 % Linear fit between 2 um and 5.7 um points
                 obj.internode_length    =                81.08*fd  + 37.84;
             end
-            
+
             output_obj = obj;
-            
+
         end
-        
-        
+
+
         function output_obj = helper__changePropsMethod2(obj)
-            
+
             fd = obj.fiber_diameter;
-            
+
             obj.paranode_length_2 = -0.171 * fd^2 + 6.48 * fd + -0.935;
-            
+
             fiberD_to_axonD = 4; % select fit to use for estimating axon diameter from fiber diameter
             if(fiberD_to_axonD == 0)
                 %Fazan Proximal
@@ -968,25 +1059,25 @@ classdef CAPulator
                 obj.axon_diameter = 0.621 * fd - 0.121;
             end
             obj.paranode_diameter_2 = obj.axon_diameter;
-            
+
             obj.node_diameter = 0.321 * obj.axon_diameter + 0.37;
             obj.paranode_diameter_1 = obj.node_diameter;
-            
+
             axonD_to_number_lemella = 0; %select fit to use for estimating number of lemella from axon diameter
             if(axonD_to_number_lemella == 0)
                 obj.number_lemella = floor(17.4 * obj.axon_diameter + -1.74);
             elseif (axonD_to_number_lemella == 1)
                 obj.number_lemella = floor(-1.17 * obj.axon_diameter^2 + 24.9 * obj.axon_diameter + 17.7);
             end
-            
+
             obj.node_length = 1;
             obj.mysa_length = 3;
             obj.internode_length = (-3.22 * fd^2 + 148 * fd + -128);
-            
+
             output_obj = obj;
-            
+
         end
-        
+
         %{
         Return the unique values within the specified vector to the specified
         precision, and return the number of instances of each of those unique
@@ -1014,11 +1105,11 @@ classdef CAPulator
         %}
         function [unique_values, n_of_each_unique_value,IA,IC] = ...
                 count_unique_values(vector_of_values,desired_round_precision)
-            
+
             if (~exist('desired_round_precision','var') || isempty(desired_round_precision))
                 desired_round_precision = 6;
             end
-            
+
             [unique_values,IA,IC] = unique(round(vector_of_values,desired_round_precision));
             n_of_each_unique_value = arrayfun(@(x) sum(IC==x), min(IC):max(IC))';
         end
