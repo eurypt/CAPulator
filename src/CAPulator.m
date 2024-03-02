@@ -186,7 +186,13 @@ classdef CAPulator
             end
 
             % Round all_fiber_diameters to the specified precision
-            all_fiber_diameters = round(all_fiber_diameters,diameter_precision);
+            % Set the template diameter precision to always be 6, even if
+            % the diameter_precision of inputs has different precision;
+            % this ensures that user-selected precision for fiber diameter
+            % measurements does not cause templates to have non-unique
+            % diameters for interpolation
+            template_diameter_precision = 6; 
+            all_fiber_diameters = round(all_fiber_diameters,template_diameter_precision);
 
             % manually declare the variables as below because parfor may not be able to
             % access variables loaded directly from a file
@@ -195,7 +201,7 @@ classdef CAPulator
                 template_diameters_to_use_um = unique(all_fiber_diameters);
             end
             templates_to_keep = find(ismember(all_fiber_diameters,...
-                round(template_diameters_to_use_um,diameter_precision)));
+                round(template_diameters_to_use_um,template_diameter_precision)));
             template_data_matrix = template_data_matrix(:,templates_to_keep,:);
 
             all_fiber_diameters = all_fiber_diameters(templates_to_keep);
@@ -237,13 +243,34 @@ classdef CAPulator
             % across fiber diameters. Since the square of the CV for unmyelinated fibers is a
             % linear function of fiber diameter, this approach produces better CV estimates
             if (strcmp(fiber_type,'myelinated'))
-                CV_interpolated_all_fibers = interp1(all_fiber_diameters,...
-                    all_conduction_velocity_m_per_s,...
-                    query_fiber_diameter_interpolated_all,interp_type);
+                if (strcmp(interp_type,'nearest'))
+                    CV_interpolated_all_fibers = interp1(all_fiber_diameters,...
+                        all_conduction_velocity_m_per_s,...
+                        query_fiber_diameter_interpolated_all,interp_type);
+                elseif (strcmp(interp_type,'linear'))
+                    % Fit a line to the fiber diameter vs. CV relationship
+                    p = polyfit(all_fiber_diameters,all_conduction_velocity_m_per_s,1);
+
+                    % Use the linear fit to interpolate CV
+                    CV_interpolated_all_fibers = polyval(p,query_fiber_diameter_interpolated_all);
+                else
+                    error('Invalid interp_type; should be either ''nearest'' or ''linear''');
+                end
+
             elseif (strcmp(fiber_type,'unmyelinated'))
-                CV_interpolated_all_fibers = sqrt(interp1(all_fiber_diameters,...
-                    all_conduction_velocity_m_per_s.^2,...
-                    query_fiber_diameter_interpolated_all,interp_type));
+                if (strcmp(interp_type,'nearest'))
+                    CV_interpolated_all_fibers = sqrt(interp1(all_fiber_diameters,...
+                        all_conduction_velocity_m_per_s.^2,...
+                        query_fiber_diameter_interpolated_all,interp_type));
+                elseif (strcmp(interp_type,'linear'))
+                    % Fit a line to the fiber diameter vs. CV relationship
+                    p = polyfit(all_fiber_diameters,all_conduction_velocity_m_per_s.^2,1);
+
+                    % Use the linear fit to interpolate CV
+                    CV_interpolated_all_fibers = sqrt(polyval(p,query_fiber_diameter_interpolated_all));
+                else
+                    error('Invalid interp_type; should be either ''nearest'' or ''linear''');
+                end
             else
                 error('fiber_type must be either myelinated or unmyelinated');
             end

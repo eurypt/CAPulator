@@ -26,16 +26,16 @@ addpath('external_dependencies/gramm');
 % each function handle in the cell array below; a value of 0 will cause
 % that function to not be run
 function_run_status_and_handle = {
-    0, @run_baseline_CNAP_signal % Generate baseline data for Figure 1 & 3
-    0, @run_tuned_CNAP_signal % Generatetune data for Figure 11
-    0, @plot_comparison_model_vs_in_vivo % Plot Figure 1 & Figure 11
-    0, @plot_comparison_brute_force_vs_efficient % Plot Figure 3
+    1, @run_baseline_CNAP_signal % Generate baseline data for Figure 1 & 3
+    1, @run_tuned_CNAP_signal % Generate tuned data for Figure 11
+    1, @plot_comparison_model_vs_in_vivo % Plot Figure 1 & Figure 11
+    1, @plot_comparison_brute_force_vs_efficient % Plot Figure 3
     1, @plot_sensitivity_analysis_results % Plot Figures 4 & 5 (as well as some supplementary figures)
-    0, @run_conduction_distance_sensitivity_analysis % Generate data for Figure 6
-    0, @plot_conduction_distance_sensitivity_analysis % Plot Figure 6
-    0, @quantify_random_sampling_effects % Generate data for Figure 7 & plot it
-    0, @run_compare_Havton_to_Soltanpour % Generate data for Figure 8
-    0, @plot_compare_Havton_to_Soltanpour % Plot Figure 8
+    1, @run_conduction_distance_sensitivity_analysis % Generate data for Figure 6
+    1, @plot_conduction_distance_sensitivity_analysis % Plot Figure 6
+    1, @quantify_random_sampling_effects % Generate data for Figure 7 & plot it
+    1, @run_compare_Havton_to_Soltanpour % Generate data for Figure 8
+    1, @plot_compare_Havton_to_Soltanpour % Plot Figure 8
     1, @run_evalulate_CV_vs_fiberD_effect_on_CAP % Generate data for Figure 9
     1, @plot_evalulate_CV_vs_fiberD_effect_on_CAP % Plot Figure 9
     1, @quantify_shrinkage_effects % Generate data for Figure 10 & plot it
@@ -212,7 +212,7 @@ g(1,2).set_line_options("styles",{'-',':'});
 g(1,2).set_text_options('interpreter','tex','base_size',16);
 g(1,2).set_color_options('map',[0.85,0.33,0.10]);
 
-figure('position',[464,240,1101,738]);
+figure('position',[92,93.500000000000000,1101,736]);
 g.draw();
 set(g(1).facet_axes_handles(1),'XLim',[0.16,2],'YLim',200*[-1 1]);
 set(g(1).facet_axes_handles(2),'XLim',[2.5,40],'YLim',3000*[-1 1]);
@@ -242,6 +242,7 @@ unmyel_bounds = [2.5,35];
 % vivo and model data; The iterate through it in a for loop to get the
 % peak-to-peak amplitdue within the appropriate bounds for each fiber type
 Vpk2pk = nan(size([in_vivo_data_table.CNAP_uV;model_data_table.CNAP_uV],1),1);
+min_peak_time = nan(size([in_vivo_data_table.CNAP_uV;model_data_table.CNAP_uV],1),1);
 is_model_data = cell(size([in_vivo_data_table.CNAP_uV;model_data_table.CNAP_uV],1),1);
 % Iterate through the in vivo data
 for i = 1:size(in_vivo_data_table,1)
@@ -262,7 +263,9 @@ for i = 1:size(in_vivo_data_table,1)
     % Get the peak-to-peak amplitude
     Vpk2pk(i) = max(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2))) - ...
         min(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2)));
-
+    [~,ind] = min(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2)));
+    time_vector_ms_bounded = time_vector_ms(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2));
+    min_peak_time(i) = time_vector_ms_bounded(ind);
     is_model_data{i} = 'in vivo';
 end
 
@@ -285,11 +288,49 @@ for i = 1:size(model_data_table,1)
     % Get the peak-to-peak amplitude
     Vpk2pk(i+size(in_vivo_data_table,1)) = max(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2))) - ...
         min(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2)));
+    [~,ind] = min(signal(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2)));
+    time_vector_ms_bounded = time_vector_ms(time_vector_ms>=bounds(1) & time_vector_ms<=bounds(2));
+    min_peak_time(i+size(in_vivo_data_table,1)) = time_vector_ms_bounded(ind);
+
 
     is_model_data{i+size(in_vivo_data_table,1)} = 'model';
 end
 
 % Plot the peak-to-peak amplitude vs. conduction distance
+clearvars g
+g = gramm('x',[in_vivo_data_table.conduction_distance_mm;model_data_table.conduction_distance_mm],...
+    'y',min_peak_time,...
+    'color',[in_vivo_data_table.fiber_type;model_data_table.fiber_type],...
+    'subset',[in_vivo_data_table.channel_number;model_data_table.channel_number]==1);
+g.facet_grid([in_vivo_data_table.fiber_type;model_data_table.fiber_type],is_model_data,"scale","independent",'row_labels',false);
+g.geom_point();
+g.set_names('x','conduction distance (mm)','y','min peak time (ms)','row','source','color','fiber type','column','source');
+g.set_text_options('interpreter','tex','base_size',16);
+g.set_color_options('map','matlab');
+figure('position',[92,93.500000000000000,1101,736]);
+g.draw();
+
+% Ensure y-axis starts at zero
+set(g.facet_axes_handles(1),'YLim',[0 1.1*max(abs(get(g.facet_axes_handles(1),'YLim')))]);
+set(g.facet_axes_handles(2),'YLim',[0 1.1*max(abs(get(g.facet_axes_handles(2),'YLim')))]);
+set(g.facet_axes_handles(3),'YLim',[0 1.1*max(abs(get(g.facet_axes_handles(3),'YLim')))]);
+set(g.facet_axes_handles(4),'YLim',[0 1.1*max(abs(get(g.facet_axes_handles(4),'YLim')))]);
+% Turn off minor ticks
+set(g.facet_axes_handles(1),'YMinorTick','off');
+set(g.facet_axes_handles(2),'YMinorTick','off');
+set(g.facet_axes_handles(3),'YMinorTick','off');
+set(g.facet_axes_handles(4),'YMinorTick','off');
+% Set all xlim to be 5 to 16 mm
+set(g.facet_axes_handles(1),'XLim',[5 16]);
+set(g.facet_axes_handles(2),'XLim',[5 16]);
+set(g.facet_axes_handles(3),'XLim',[5 16]);
+set(g.facet_axes_handles(4),'XLim',[5 16]);
+% Save to svg file
+g.export('file_name','../results/matlab_in_vivo_vs_model_tuned_min_peak_time.svg','file_type','svg');
+
+
+
+% Plot the negative peak time vs. conduction distance
 clearvars g
 g = gramm('x',[in_vivo_data_table.conduction_distance_mm;model_data_table.conduction_distance_mm],...
     'y',Vpk2pk,...
@@ -300,7 +341,7 @@ g.geom_point();
 g.set_names('x','conduction distance (mm)','y','V_{pk-pk} (\muV)','row','source','color','fiber type','column','source');
 g.set_text_options('interpreter','tex','base_size',16);
 g.set_color_options('map','matlab');
-figure('position',[464,240,1101,738]);
+figure('position',[92,93.500000000000000,1101,736]);
 g.draw();
 
 % Ensure y-axis starts at zero
@@ -320,6 +361,7 @@ set(g.facet_axes_handles(3),'XLim',[5 16]);
 set(g.facet_axes_handles(4),'XLim',[5 16]);
 % Save to svg file
 g.export('file_name','../results/matlab_in_vivo_vs_model_tuned_Vpk2pk.svg','file_type','svg');
+
 
 function plot_comparison_brute_force_vs_efficient()
 % Load the in vivo data
@@ -573,7 +615,7 @@ for i = 0:1
     % Set edges based on Soltanpour & Santer 1996 data such that the bin centers
     % from those data are the bin centers for the specified edges
     if (i==0) % unmyelinated
-        x_bounds = [0,24]; % [ms]
+        x_bounds = [0 35]; % [ms]
         edges = 0.21:0.14:1.33; % [um]
     else % myelinated
         x_bounds = [0,2.5]; % [ms]
@@ -593,7 +635,7 @@ for i = 0:1
     g.set_text_options('interpreter','tex','base_size',16,...
         'legend_scaling',0.8,'legend_title_scaling',0.9);
     g.geom_line();
-    figure('position',[680,679,885,299]);
+    figure('position',[2.465000000000000e+02,4.655000000000000e+02,413,299]);
     g.draw();
 
     % Plot the histograms of fiber diameters
@@ -604,7 +646,7 @@ for i = 0:1
     g.set_text_options('interpreter','tex','base_size',16,...
         'legend_scaling',0.8,'legend_title_scaling',0.9);
     g.stat_bin('edges',edges,'geom','overlaid_bar');
-    figure('position',[680,679,885,299]);
+    figure('position',[7.295000000000000e+02,74.500000000000000,3.915000000000000e+02,299]);
     g.draw();
 
 
@@ -644,21 +686,21 @@ z_jitter_options = [0 1];
 
 all_pseudonyms_and_distances = {
     % same as model A001, except D vs. V is fit to the biophysical model D vs. V
-    'model default',14e3,1,random_seeds(1),@(D,V) 3.877*D - 2.491 ,z_jitter_options(1),1
+    'model default',14e3,1,random_seeds(1),@(D,V) 4.007*D - 2.534 ,z_jitter_options(1),1
 
     % same as model A002, except slope coefficient is halved/double
-    'faster',14e3,1,random_seeds(1),@(D,V) (3.877*sqrt(2))*D - 2.491 ,z_jitter_options(1),1
-    'slower',14e3,1,random_seeds(1),@(D,V) (3.877/sqrt(2))*D - 2.491 ,z_jitter_options(1),1
+    'faster',14e3,1,random_seeds(1),@(D,V) (4.007*sqrt(2))*D - 2.534 ,z_jitter_options(1),1
+    'slower',14e3,1,random_seeds(1),@(D,V) (4.007/sqrt(2))*D - 2.534 ,z_jitter_options(1),1
 
     % same as model A002, except D vs. V is fit to Hursh 1939
     'Hursh 1939',14e3,1,random_seeds(1),@(D,V) 5.972*D - 3.297,z_jitter_options(1),1
 
     % same as model A007, except D vs. V is fit to the biophysical model D vs. V
-    'model default',14e3,0,random_seeds(1),@(D,V) 0.7842*sqrt(D) + 0.004242,z_jitter_options(1),1
+    'model default',14e3,0,random_seeds(1),@(D,V) 0.7047*sqrt(D) + -0.001948,z_jitter_options(1),1
 
     % same as model A008, except slope coefficient is halved/double
-    'faster',14e3,0,random_seeds(1),@(D,V) (0.7842*sqrt(2))*sqrt(D) + 0.004242,z_jitter_options(1),1
-    'slower',14e3,0,random_seeds(1),@(D,V) (0.7842/sqrt(2))*sqrt(D) + 0.004242,z_jitter_options(1),1
+    'faster',14e3,0,random_seeds(1),@(D,V) (0.7047*sqrt(2))*sqrt(D) + -0.001948,z_jitter_options(1),1
+    'slower',14e3,0,random_seeds(1),@(D,V) (0.7047/sqrt(2))*sqrt(D) + -0.001948,z_jitter_options(1),1
 
     % same as model A008, except D vs. V is linear fit to Hoffmeister 1991 Fig 5A
     'Hoffmeister 1991',14e3,0,random_seeds(1),@(D,V) 0.6496*D + 0.1309,z_jitter_options(1),1
@@ -687,11 +729,15 @@ for params_i = 1:size(all_pseudonyms_and_distances,1)
     params = loadjson(base_parameters_filename);
 
     % Load the original template data
-    original_template_data = load(params.template_data_source_filename,'output_data_structure');
+    original_template_data = load(params.template_data_source_filename,'output_data_structure','fiber_type');
 
     % Set new CV values for each fiber diameter using a new specified
     % relationship
     old_CV = horzcat([original_template_data.output_data_structure.conduction_velocity_m_per_s]);
+    % display the fit being used
+    format long
+    all_pseudonyms_and_distances{params_i,1}
+    all_pseudonyms_and_distances{params_i,5}
     new_CV = all_pseudonyms_and_distances{params_i,5}(...
         horzcat([original_template_data.output_data_structure.fiber_diameter]),...
         old_CV);
@@ -751,11 +797,11 @@ output_data_structure = load('../results/CV_vs_fiberD_effect.mat');
 % Plot the CAP signals
 for i = 0:1
     if (i==0) % unmyelinated
-        x_bounds = [0,40]; % [ms]
-        svg_filename = 'CV_vs_D_effect_myelinated';
+        x_bounds = [0,45]; % [ms]
+        svg_filename = 'CV_vs_D_effect_unmyelinated';
     else % myelinated
         x_bounds = [0,2.5]; % [ms]
-        svg_filename = 'CV_vs_D_effect_unmyelinated';
+        svg_filename = 'CV_vs_D_effect_myelinated';
     end
 
     clearvars g
@@ -770,7 +816,7 @@ for i = 0:1
     g.axe_property('XLim',x_bounds);
     figure;
     g.draw();
-    % g.export('file_name',svg_filename,'file_type','svg');
+    g.export('file_name',svg_filename,'file_type','svg');
 end
 
 
@@ -967,27 +1013,10 @@ end
 
 function quantify_random_sampling_effects()
 
-
 % run comparisons for both myelinated and ummyelinated
 ouptut_data_structure = [];
 for i=1:2
-
-    % Load base parameters file
     if (i==1)
-        flag_myelinated = 1;
-        base_parameters_filename = '../JSON_input_params/RUN_CNAP_20221004_ASCENT_myel.json';
-        x_bounds = [0 3.7];
-        y_bounds = 950*[-1 1];
-        % I chose the bin sizes to include 0.000001 um
-        % (ground truth) and to also include a progression from very coarse
-        % (~2 um) with roughly doubling precision until a precision that
-        % was basically convered with the ground truth
-        n_bins = [8796306,4,9,18,36,64,128];
-        random_samples_filename = 'random_samples_myelinated';
-        nbins_effects_filename = 'nbins_effects_myelinated';
-        histograms_nbins_filename = 'histograms_nbins_myelinated';
-
-    elseif (i==2)
         flag_myelinated = 0;
         base_parameters_filename = '../JSON_input_params/RUN_CNAP_20221004_ASCENT_unmyel.json';
         x_bounds = [0 35];
@@ -1002,8 +1031,20 @@ for i=1:2
         random_samples_filename = 'random_samples_unmyelinated';
         nbins_effects_filename = 'nbins_effects_unmyelinated';
         histograms_nbins_filename = 'histograms_nbins_unmyelinated';
-
-
+    % Load base parameters file
+    elseif (i==2)
+        flag_myelinated = 1;
+        base_parameters_filename = '../JSON_input_params/RUN_CNAP_20221004_ASCENT_myel.json';
+        x_bounds = [0 3.7];
+        y_bounds = 950*[-1 1];
+        % I chose the bin sizes to include 0.000001 um
+        % (ground truth) and to also include a progression from very coarse
+        % (~2 um) with roughly doubling precision until a precision that
+        % was basically convered with the ground truth
+        n_bins = [8796306,4,9,18,36,64,128];
+        random_samples_filename = 'random_samples_myelinated';
+        nbins_effects_filename = 'nbins_effects_myelinated';
+        histograms_nbins_filename = 'histograms_nbins_myelinated'
     else
         error('invalid value of i: %d')
     end
@@ -1021,7 +1062,6 @@ for i=1:2
     centers = {};
     bin_sizes = [];
     for bin_ind=1:length(n_bins)
-
         edges_i = linspace(min(original_values),max(original_values),n_bins(bin_ind)+1);
         [counts_i,~,bin] = histcounts(original_values,edges_i);
         bin_sizes(bin_ind) = mode(diff(edges_i));
@@ -1052,14 +1092,12 @@ for i=1:2
     g.draw();
     % g.export('file_name',histograms_nbins_filename,'file_type','svg');
 
-
     output_table = [];
     for bin_ind=1:length(n_bins)
         params.fiber_diameters_in_nerve_um = bin_derived_values{bin_ind}';
         output_table_i = process_params(params);
         output_table = vertcat(output_table,output_table_i);
     end
-
 
     clearvars g
     g = gramm('x',output_table.common_time_vector_ms,'y',output_table.CAP_signal_uV,...
@@ -1141,8 +1179,13 @@ arguments
     flag_myelinated
 end
 
-output_table = load_sensitivity_analysis_results(flag_myelinated);
-sensitivity_analysis_table = convert_COMSOL_sweep_txt_to_table('../results/sens_analysis_full.txt');
+    if (flag_myelinated==1)
+        load('../results/myelinated_fiber_CNAPs_across_materials.mat','sensitivity_analysis_table','output_table');
+    elseif (flag_myelinated==0)
+        load('../results/unmyelinated_fiber_CNAPs_across_materials.mat','sensitivity_analysis_table','output_table')
+    else
+        error('Invalid value of flag_myelinated')
+    end
 
 % Create a data structure that contains the same fields as the table, but
 % where each field is parsed for a number, then add in a field containing
@@ -1161,12 +1204,12 @@ for i = 1:size(sensitivity_analysis_table,1)
         sensitivity_analysis_struct.sigma_endoneurium_x(i),2);
 
     % Add the desired metric to plot
-    sensitivity_analysis_struct.Vpk2pk(i) = max(output_table.CAP_signal{i}) - ...
-        min(output_table.CAP_signal{i});
+    sensitivity_analysis_struct.Vpk2pk(i) = max(output_table.CAP_signal_uV{i}) - ...
+        min(output_table.CAP_signal_uV{i});
 
 
 end
-sensitivity_analysis_struct.CAP_signals_all = cell2mat(output_table.CAP_signal');
+sensitivity_analysis_struct.CAP_signals_all = cell2mat(output_table.CAP_signal_uV');
 sensitivity_analysis_struct.common_time_vector_ms = output_table.common_time_vector_ms(1,:)';
 
 %% Plot just a subset of the data to highlight key pieces of the story
@@ -1186,6 +1229,7 @@ for i = 1:4
                 round(sensitivity_analysis_struct.sigma_endoneurium_z,5)==0.57143 & ...
                 round(sensitivity_analysis_struct.sigma_perineurium,6)==round(8.70322e-4,6);
         case 2
+                
             % Amplitude vs. perineurial conductivity
             x_data = sensitivity_analysis_struct.sigma_perineurium;
             x_data_label = '\sigma_{perineurium} (S/m)';
@@ -1214,7 +1258,7 @@ for i = 1:4
             error('Invalid case in switch statement');
     end
 
-    y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
+    y_data = sensitivity_analysis_struct.Vpk2pk;
     color_data = 360-sensitivity_analysis_struct.Theta_CylUm300t_20230323_001;
 
     clear g
@@ -1233,7 +1277,7 @@ for i = 1:4
         'YMinorGrid','off','YTick',ytick_locations,'YLim',[min(ytick_locations),max(ytick_locations)],...
         'XMinorTick','off','XLim',...
         [min(x_data),max(x_data)],'XTick',xtick_vals,'XTickLabel',xtick_labels);
-    g.set_layout_options('legend',false);
+        g.set_layout_options('legend',false);
     g.set_text_options('interpreter','tex','base_size',12);
     figure;
     g.draw();
@@ -1262,7 +1306,7 @@ for i =1:2
             error('Invalid case value')
     end
 
-    y_data = 1e6*sensitivity_analysis_struct.Vpk2pk;
+    y_data = sensitivity_analysis_struct.Vpk2pk;
     color_data = sensitivity_analysis_struct.sigma_perineurium;
 
     clear g
@@ -1354,7 +1398,7 @@ for i = 1:4
 
 
     clear g
-    g=gramm('x',x_data,...
+    g=gramm('x',x_data{1},...
         'y',y_data,...
         'color',color_data,...
         'subset',subset_indices);
@@ -1369,40 +1413,7 @@ for i = 1:4
     g.set_text_options('interpreter','tex','base_size',12);
     %     g.set_color_options('map','parula')
     g.set_continuous_color('colormap','parula');
-    figure('position',[680   558   612   420]);
+    figure('position',[680   200   612   420]);
     g.draw();
 end
 
-
-function [output_table, sensitivity_analysis_table] = load_sensitivity_analysis_results(flag_myelinated)
-
-output_table = [];
-sensitivity_analysis_table = [];
-
-if (flag_myelinated==1)
-    output_table_files = {
-        '../results/mimic_brute_force_myel_sweep_workspace.mat'
-        };
-elseif (flag_myelinated==0)
-    output_table_files = {
-        '../results/mimic_brute_force_unmyel_sweep_workspace.mat'
-        };
-else
-    error('invalid flag_myelinated value')
-end
-
-
-for i = 1:length(output_table_files)
-    % Load the sensitivity analysis data and the sensitivity analysis table (with comma delimiter)
-    workspace_i = load(output_table_files{i});
-    if (isfield(workspace_i,'output_table'))
-        output_table_i = workspace_i.output_table;
-    elseif (isfield(workspace_i,'all_output_tables'))
-        output_table_i = vertcat(workspace_i.all_output_tables{:});
-    else
-        error('Did not find output_table or all_output_tables in %s',output_table_files{i});
-    end
-
-    % Append the output table and the sensitivity analysis table
-    output_table = [output_table;output_table_i];
-end
